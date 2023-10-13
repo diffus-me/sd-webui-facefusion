@@ -14,12 +14,12 @@ def render() -> None:
 	value = []
 	if facefusion.globals.keep_fps:
 		value.append('keep-fps')
-	if facefusion.globals.keep_temp:
-		value.append('keep-temp')
+	# if facefusion.globals.keep_temp:
+	# 	value.append('keep-temp')
 	if facefusion.globals.skip_audio:
 		value.append('skip-audio')
-	if facefusion.globals.skip_download:
-		value.append('skip-download')
+	# if facefusion.globals.skip_download:
+	# 	value.append('skip-download')
 	COMMON_OPTIONS_CHECKBOX_GROUP = gradio.Checkboxgroup(
 		label = wording.get('common_options_checkbox_group_label'),
 		choices = choices.common_options,

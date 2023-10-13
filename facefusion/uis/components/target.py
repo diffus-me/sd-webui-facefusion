@@ -34,11 +34,13 @@ def render() -> None:
 	)
 	TARGET_IMAGE = gradio.Image(
 		value = TARGET_FILE.value['name'] if is_target_image else None,
+		interactive = False,
 		visible = is_target_image,
 		show_label = False
 	)
 	TARGET_VIDEO = gradio.Video(
 		value = TARGET_FILE.value['name'] if is_target_video else None,
+		interactive = False,
 		visible = is_target_video,
 		show_label = False
 	)

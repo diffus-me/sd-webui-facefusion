@@ -29,6 +29,7 @@ def render() -> None:
 	)
 	SOURCE_IMAGE = gradio.Image(
 		value = SOURCE_FILE.value['name'] if is_source_image else None,
+		interactive = False,
 		visible = is_source_image,
 		show_label = False
 	)

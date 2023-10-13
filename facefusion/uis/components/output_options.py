@@ -25,7 +25,8 @@ def render() -> None:
 	OUTPUT_PATH_TEXTBOX = gradio.Textbox(
 		label = wording.get('output_path_textbox_label'),
 		value = facefusion.globals.output_path or tempfile.gettempdir(),
-		max_lines = 1
+		max_lines = 1,
+		visible = False,
 	)
 	OUTPUT_IMAGE_QUALITY_SLIDER = gradio.Slider(
 		label = wording.get('output_image_quality_slider_label'),

@@ -15,17 +15,17 @@ def render() -> gradio.Blocks:
 	with gradio.Blocks() as layout:
 		with gradio.Row():
 			with gradio.Column(scale = 2):
-				with gradio.Blocks():
-					about.render()
+				# with gradio.Blocks():
+				# 	about.render()
 				with gradio.Blocks():
 					frame_processors.render()
 					frame_processors_options.render()
 				with gradio.Blocks():
-					execution.render()
+					# execution.render()
 					execution_thread_count.render()
 					execution_queue_count.render()
-				with gradio.Blocks():
-					limit_resources.render()
+				# with gradio.Blocks():
+				# 	limit_resources.render()
 				with gradio.Blocks():
 					temp_frame.render()
 				with gradio.Blocks():
@@ -54,10 +54,10 @@ def render() -> gradio.Blocks:
 def listen() -> None:
 	frame_processors.listen()
 	frame_processors_options.listen()
-	execution.listen()
+	# execution.listen()
 	execution_thread_count.listen()
 	execution_queue_count.listen()
-	limit_resources.listen()
+	# limit_resources.listen()
 	temp_frame.listen()
 	output_options.listen()
 	common_options.listen()

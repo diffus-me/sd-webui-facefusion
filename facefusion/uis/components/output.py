@@ -22,10 +22,12 @@ def render() -> None:
 
 	OUTPUT_IMAGE = gradio.Image(
 		label = wording.get('output_image_or_video_label'),
+		interactive = False,
 		visible = False
 	)
 	OUTPUT_VIDEO = gradio.Video(
-		label = wording.get('output_image_or_video_label')
+		label = wording.get('output_image_or_video_label'),
+		interactive = False,
 	)
 	OUTPUT_START_BUTTON = gradio.Button(
 		value = wording.get('start_button_label'),
