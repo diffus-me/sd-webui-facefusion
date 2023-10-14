@@ -26,7 +26,12 @@ ComponentName = Literal\
 	'player_url_textbox_label',
 	'webcam_mode_radio',
 	'webcam_resolution_dropdown',
-	'webcam_fps_slider'
+	'webcam_fps_slider',
+	'trim_frame_start_slider',
+	'trim_frame_end_slider',
+	'id_task',
+	'width',
+	'height',
 ]
 WebcamMode = Literal[ 'inline', 'udp', 'v4l2' ]
 StreamMode = Literal[ 'udp', 'v4l2' ]

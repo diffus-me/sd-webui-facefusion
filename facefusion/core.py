@@ -11,6 +11,7 @@ import shutil
 import onnxruntime
 import tensorflow
 from argparse import ArgumentParser, HelpFormatter
+import gradio
 
 import facefusion.choices
 import facefusion.globals
@@ -18,6 +19,7 @@ from facefusion import metadata, wording
 from facefusion.predictor import predict_image, predict_video
 from facefusion.processors.frame.core import get_frame_processors_modules, load_frame_processor_module
 from facefusion.utilities import is_image, is_video, detect_fps, compress_image, merge_video, extract_frames, get_temp_frame_paths, restore_audio, create_temp, move_temp, clear_temp, list_module_names, encode_execution_providers, decode_execution_providers, normalize_output_path
+from modules.system_monitor import monitor_call_context
 
 warnings.filterwarnings('ignore', category = FutureWarning, module = 'insightface')
 warnings.filterwarnings('ignore', category = UserWarning, module = 'gradio')
@@ -183,24 +185,33 @@ def pre_check() -> bool:
 	return True
 
 
-def conditional_process() -> None:
+def conditional_process(request: gradio.Request | None, width: int, height: int) -> None:
 	for frame_processor_module in get_frame_processors_modules(facefusion.globals.frame_processors):
 		if not frame_processor_module.pre_process('output'):
 			return
 	if is_image(facefusion.globals.target_path):
-		process_image()
+		process_image(request, width, height)
 	if is_video(facefusion.globals.target_path):
-		process_video()
+		process_video(request, width, height)
 
-
-def process_image() -> None:
+def process_image(request: gradio.Request | None, width: int, height: int) -> None:
 	if predict_image(facefusion.globals.target_path):
 		return
 	shutil.copy2(facefusion.globals.target_path, facefusion.globals.output_path)
 	# process frame
 	for frame_processor_module in get_frame_processors_modules(facefusion.globals.frame_processors):
 		update_status(wording.get('processing'), frame_processor_module.NAME)
-		frame_processor_module.process_image(facefusion.globals.source_path, facefusion.globals.output_path, facefusion.globals.output_path)
+		with monitor_call_context(
+			request,
+			"extensions.facefusion",
+			"extensions.facefusion",
+			decoded_params={
+				"width": width,
+				"height": height,
+				"n_iter": 1,
+			},
+		):
+			frame_processor_module.process_image(facefusion.globals.source_path, facefusion.globals.output_path, facefusion.globals.output_path)
 		frame_processor_module.post_process()
 	# compress image
 	update_status(wording.get('compressing_image'))
@@ -213,7 +224,7 @@ def process_image() -> None:
 		update_status(wording.get('processing_image_failed'))
 
 
-def process_video() -> None:
+def process_video(request: gradio.Request | None, width: int, height: int) -> None:
 	if predict_video(facefusion.globals.target_path):
 		return
 	fps = detect_fps(facefusion.globals.target_path) if facefusion.globals.keep_fps else 25.0
@@ -228,7 +239,17 @@ def process_video() -> None:
 	if temp_frame_paths:
 		for frame_processor_module in get_frame_processors_modules(facefusion.globals.frame_processors):
 			update_status(wording.get('processing'), frame_processor_module.NAME)
-			frame_processor_module.process_video(facefusion.globals.source_path, temp_frame_paths)
+			with monitor_call_context(
+				request,
+				"extensions.facefusion",
+				"extensions.facefusion",
+				decoded_params={
+					"width": width,
+					"height": height,
+					"n_iter": len(temp_frame_paths),
+				},
+			):
+				frame_processor_module.process_video(facefusion.globals.source_path, temp_frame_paths)
 			frame_processor_module.post_process()
 	else:
 		update_status(wording.get('temp_frames_not_found'))

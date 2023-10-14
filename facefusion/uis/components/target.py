@@ -35,6 +35,7 @@ def render() -> None:
 	TARGET_IMAGE = gradio.Image(
 		value = TARGET_FILE.value['name'] if is_target_image else None,
 		interactive = False,
+		type='pil',
 		visible = is_target_image,
 		show_label = False
 	)

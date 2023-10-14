@@ -7,6 +7,7 @@ from facefusion.core import limit_resources, conditional_process
 from facefusion.uis.core import get_ui_component
 from facefusion.utilities import is_image, is_video, normalize_output_path, clear_temp
 from facefusion.uis.typing import Update
+from modules.system_monitor import monitor_call_context
 
 OUTPUT_IMAGE : Optional[gradio.Image] = None
 OUTPUT_VIDEO : Optional[gradio.Video] = None
@@ -31,6 +32,7 @@ def render() -> None:
 	)
 	OUTPUT_START_BUTTON = gradio.Button(
 		value = wording.get('start_button_label'),
+		elem_id = "facefusion_start_button",
 		variant = 'primary',
 		size = 'sm'
 	)
@@ -41,21 +43,41 @@ def render() -> None:
 
 
 def listen() -> None:
+	id_task = get_ui_component('id_task')
+	width = get_ui_component('width')
+	height = get_ui_component('height')
 	output_path_textbox = get_ui_component('output_path_textbox')
 	if output_path_textbox:
-		OUTPUT_START_BUTTON.click(start, inputs = output_path_textbox, outputs = [ OUTPUT_IMAGE, OUTPUT_VIDEO ])
+		OUTPUT_START_BUTTON.click(
+			start,
+			_js="submit_facefusion_task",
+			inputs = [id_task, width, height, output_path_textbox],
+			outputs = [ OUTPUT_IMAGE, OUTPUT_VIDEO ]
+		)
 	OUTPUT_CLEAR_BUTTON.click(clear, outputs = [ OUTPUT_IMAGE, OUTPUT_VIDEO ])
 
 
-def start(output_path : str) -> Tuple[Update, Update]:
+def start(request: gradio.Request, id_task: str, width: int, height: int, output_path : str) -> Tuple[Update, Update]:
 	facefusion.globals.output_path = normalize_output_path(facefusion.globals.source_path, facefusion.globals.target_path, output_path)
 	limit_resources()
-	conditional_process()
-	if is_image(facefusion.globals.output_path):
-		return gradio.update(value = facefusion.globals.output_path, visible = True), gradio.update(value = None, visible = False)
-	if is_video(facefusion.globals.output_path):
-		return gradio.update(value = None, visible = False), gradio.update(value = facefusion.globals.output_path, visible = True)
-	return gradio.update(), gradio.update()
+	with monitor_call_context(
+		request,
+		"extensions.facefusion",
+		"extensions.facefusion",
+		id_task.removeprefix("task(").removesuffix(")"),
+		decoded_params={
+			"width": width,
+			"height": height,
+			"n_iter": 1,
+		},
+		is_intermediate=False,
+	):
+		conditional_process(request, width, height)
+		if is_image(facefusion.globals.output_path):
+			return gradio.update(value = facefusion.globals.output_path, visible = True), gradio.update(value = None, visible = False)
+		if is_video(facefusion.globals.output_path):
+			return gradio.update(value = None, visible = False), gradio.update(value = facefusion.globals.output_path, visible = True)
+		return gradio.update(), gradio.update()
 
 
 def clear() -> Tuple[Update, Update]:

@@ -13,6 +13,7 @@ from facefusion.processors.frame.core import load_frame_processor_module
 from facefusion.utilities import is_video, is_image
 from facefusion.uis.typing import ComponentName, Update
 from facefusion.uis.core import get_ui_component, register_ui_component
+from modules.system_monitor import monitor_call_context
 
 PREVIEW_IMAGE : Optional[gradio.Image] = None
 PREVIEW_FRAME_SLIDER : Optional[gradio.Slider] = None
@@ -56,7 +57,13 @@ def render() -> None:
 
 
 def listen() -> None:
-	PREVIEW_FRAME_SLIDER.change(update_preview_image, inputs = PREVIEW_FRAME_SLIDER, outputs = PREVIEW_IMAGE)
+	id_task = get_ui_component("id_task")
+	PREVIEW_FRAME_SLIDER.change(
+		update_preview_image_wrapper,
+		_js="submit_facefusion_task",
+		inputs = [id_task, PREVIEW_FRAME_SLIDER],
+		outputs = PREVIEW_IMAGE
+	)
 	multi_component_names : List[ComponentName] =\
 	[
 		'source_image',
@@ -67,7 +74,11 @@ def listen() -> None:
 		component = get_ui_component(component_name)
 		if component:
 			for method in [ 'upload', 'change', 'clear' ]:
-				getattr(component, method)(update_preview_image, inputs = PREVIEW_FRAME_SLIDER, outputs = PREVIEW_IMAGE)
+				getattr(component, method)(
+					update_preview_image_wrapper,
+					_js="submit_facefusion_task",
+					inputs = [id_task, PREVIEW_FRAME_SLIDER],
+					outputs = PREVIEW_IMAGE)
 				getattr(component, method)(update_preview_frame_slider, inputs = PREVIEW_FRAME_SLIDER, outputs = PREVIEW_FRAME_SLIDER)
 	update_component_names : List[ComponentName] =\
 	[
@@ -80,7 +91,11 @@ def listen() -> None:
 	for component_name in update_component_names:
 		component = get_ui_component(component_name)
 		if component:
-			component.change(update_preview_image, inputs = PREVIEW_FRAME_SLIDER, outputs = PREVIEW_IMAGE)
+			component.change(
+				update_preview_image_wrapper,
+				_js="submit_facefusion_task",
+				inputs = [id_task, PREVIEW_FRAME_SLIDER],
+				outputs = PREVIEW_IMAGE)
 	select_component_names : List[ComponentName] =\
 	[
 		'reference_face_position_gallery',
@@ -91,7 +106,12 @@ def listen() -> None:
 	for component_name in select_component_names:
 		component = get_ui_component(component_name)
 		if component:
-			component.select(update_preview_image, inputs = PREVIEW_FRAME_SLIDER, outputs = PREVIEW_IMAGE)
+			component.select(
+				update_preview_image_wrapper,
+				_js="submit_facefusion_task",
+				inputs = [id_task, PREVIEW_FRAME_SLIDER],
+				outputs = PREVIEW_IMAGE
+			)
 	change_component_names : List[ComponentName] =\
 	[
 		'reference_face_distance_slider',
@@ -101,22 +121,43 @@ def listen() -> None:
 	for component_name in change_component_names:
 		component = get_ui_component(component_name)
 		if component:
-			component.change(update_preview_image, inputs = PREVIEW_FRAME_SLIDER, outputs = PREVIEW_IMAGE)
+			component.change(
+				update_preview_image_wrapper,
+				_js="submit_facefusion_task",
+				inputs = [id_task, PREVIEW_FRAME_SLIDER],
+				outputs = PREVIEW_IMAGE
+			)
 
+def update_preview_image_wrapper(
+	request: gradio.Request, id_task: str, frame_number: int = 0
+) -> Update:
+	with monitor_call_context(
+		request,
+		"extensions.facefusion",
+		"extensions.facefusion",
+		id_task.removeprefix("task(").removesuffix(")"),
+		decoded_params={
+			"width": 640,
+			"height": 640,
+			"n_iter": 1,
+		},
+		is_intermediate=False,
+	):
+		return update_preview_image(request, frame_number)
 
-def update_preview_image(frame_number : int = 0) -> Update:
+def update_preview_image(request: gradio.Request, frame_number : int = 0) -> Update:
 	conditional_set_face_reference()
 	source_face = get_one_face(read_static_image(facefusion.globals.source_path))
 	reference_face = get_face_reference() if 'reference' in facefusion.globals.face_recognition else None
 	if is_image(facefusion.globals.target_path):
 		target_frame = read_static_image(facefusion.globals.target_path)
-		preview_frame = process_preview_frame(source_face, reference_face, target_frame)
+		preview_frame = process_preview_frame(request, source_face, reference_face, target_frame)
 		preview_frame = normalize_frame_color(preview_frame)
 		return gradio.update(value = preview_frame)
 	if is_video(facefusion.globals.target_path):
 		facefusion.globals.reference_frame_number = frame_number
 		temp_frame = get_video_frame(facefusion.globals.target_path, facefusion.globals.reference_frame_number)
-		preview_frame = process_preview_frame(source_face, reference_face, temp_frame)
+		preview_frame = process_preview_frame(request, source_face, reference_face, temp_frame)
 		preview_frame = normalize_frame_color(preview_frame)
 		return gradio.update(value = preview_frame)
 	return gradio.update(value = None)
@@ -132,18 +173,33 @@ def update_preview_frame_slider(frame_number : int = 0) -> Update:
 	return gradio.update()
 
 
-def process_preview_frame(source_face : Face, reference_face : Face, temp_frame : Frame) -> Frame:
+def process_preview_frame(
+	request: gradio.Request,
+	source_face : Face,
+	reference_face : Face,
+	temp_frame : Frame
+) -> Frame:
 	temp_frame = resize_frame_dimension(temp_frame, 640, 640)
 	if predict_frame(temp_frame):
 		return cv2.GaussianBlur(temp_frame, (99, 99), 0)
 	for frame_processor in facefusion.globals.frame_processors:
 		frame_processor_module = load_frame_processor_module(frame_processor)
 		if frame_processor_module.pre_process('preview'):
-			temp_frame = frame_processor_module.process_frame(
-				source_face,
-				reference_face,
-				temp_frame
-			)
+			with monitor_call_context(
+				request,
+				"extensions.facefusion",
+				"extensions.facefusion",
+				decoded_params={
+					"width": 640,
+					"height": 640,
+					"n_iter": 1,
+				},
+			):
+				temp_frame = frame_processor_module.process_frame(
+					source_face,
+					reference_face,
+					temp_frame
+				)
 	return temp_frame
 
 
