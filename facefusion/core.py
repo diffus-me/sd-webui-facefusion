@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -16,9 +17,10 @@ import gradio
 import facefusion.choices
 import facefusion.globals
 from facefusion import metadata, wording
-from facefusion.predictor import predict_image, predict_video
+from facefusion.predictor import predict_frame, predict_image, predict_video
 from facefusion.processors.frame.core import get_frame_processors_modules, load_frame_processor_module
 from facefusion.utilities import is_image, is_video, detect_fps, compress_image, merge_video, extract_frames, get_temp_frame_paths, restore_audio, create_temp, move_temp, clear_temp, list_module_names, encode_execution_providers, decode_execution_providers, normalize_output_path
+from facefusion.typing import FaceRecognition, Frame, FaceAnalyserAge, FaceAnalyserDirection, FaceAnalyserGender
 from modules.system_monitor import monitor_call_context
 
 warnings.filterwarnings('ignore', category = FutureWarning, module = 'insightface')
@@ -185,21 +187,96 @@ def pre_check() -> bool:
 	return True
 
 
-def conditional_process(request: gradio.Request | None, width: int, height: int) -> None:
-	for frame_processor_module in get_frame_processors_modules(facefusion.globals.frame_processors):
-		if not frame_processor_module.pre_process('output'):
+def conditional_process(
+	request: gradio.Request | None,
+	width: int,
+	height: int,
+	preview_frame_slider: int,
+	source_image: Frame,
+	target_image: Frame | None,
+	target_video: str | None,
+	face_recognition_dropdown: FaceRecognition,
+	reference_face_position_gallery_index: int,
+	face_analyser_direction: FaceAnalyserDirection,
+	face_analyser_age: FaceAnalyserAge,
+	face_analyser_gender: FaceAnalyserGender,
+	frame_processors_checkbox_group: list[str],
+	face_swapper_model_dropdown: str,
+	face_enhancer_model_dropdown: str,
+	frame_enhancer_model_dropdown: str,
+	reference_face_distance_slider: float,
+	face_enhancer_blend_slider: int,
+	frame_enhancer_blend_slider: int,
+	output_image_quality_slider: int,
+	temp_frame_format_dropdown: str,
+	temp_frame_quality_slider: int,
+	output_video_encoder_dropdown: str,
+	output_video_quality_slider: int,
+	trim_frame_start_slider: int,
+	trim_frame_end_slider: int,
+	common_options_checkbox_group: list[str],
+) -> None:
+	kwargs = {
+		"face_swapper_model": face_swapper_model_dropdown,
+		"face_enhancer_model": face_enhancer_model_dropdown,
+		"frame_enhancer_model": frame_enhancer_model_dropdown,
+		"source_image": source_image,
+		"target_image": target_image,
+		"target_video": target_video,
+		"face_recognition_dropdown": face_recognition_dropdown,
+		"reference_face_distance_slider": reference_face_distance_slider,
+		"face_analyser_direction": face_analyser_direction,
+		"face_analyser_age": face_analyser_age,
+		"face_analyser_gender": face_analyser_gender,
+		"face_enhancer_blend_slider": face_enhancer_blend_slider,
+		"frame_enhancer_blend_slider": frame_enhancer_blend_slider,
+		"reference_face_position_gallery_index": reference_face_position_gallery_index,
+		"preview_frame_slider": preview_frame_slider,
+	}
+	for frame_processor_module in get_frame_processors_modules(frame_processors_checkbox_group):
+		if not frame_processor_module.pre_process('output', kwargs):
 			return
-	if is_image(facefusion.globals.target_path):
-		process_image(request, width, height)
-	if is_video(facefusion.globals.target_path):
-		process_video(request, width, height)
+	if target_image is not None:
+		process_image(
+			request,
+			width,
+			height,
+			frame_processors_checkbox_group,
+			output_image_quality_slider,
+			kwargs,
+		)
+	elif target_video is not None:
+		process_video(
+			request,
+			width,
+			height,
+			frame_processors_checkbox_group,
+			common_options_checkbox_group,
+			temp_frame_format_dropdown,
+			temp_frame_quality_slider,
+			output_video_encoder_dropdown,
+			output_video_quality_slider,
+			trim_frame_start_slider,
+			trim_frame_end_slider,
+			kwargs,
+		)
 
-def process_image(request: gradio.Request | None, width: int, height: int) -> None:
-	if predict_image(facefusion.globals.target_path):
+def process_image(
+	request: gradio.Request | None,
+	width: int,
+	height: int,
+	frame_processors_checkbox_group: list[str],
+	output_image_quality_slider: int,
+	kwargs: dict[str, Any],
+) -> None:
+	# if predict_image(facefusion.globals.target_path):
+	# 	return
+	frame = kwargs["target_image"]
+	if predict_frame(frame):
 		return
-	shutil.copy2(facefusion.globals.target_path, facefusion.globals.output_path)
+	# shutil.copy2(facefusion.globals.target_path, facefusion.globals.output_path)
 	# process frame
-	for frame_processor_module in get_frame_processors_modules(facefusion.globals.frame_processors):
+	for frame_processor_module in get_frame_processors_modules(frame_processors_checkbox_group):
 		update_status(wording.get('processing'), frame_processor_module.NAME)
 		with monitor_call_context(
 			request,
@@ -211,11 +288,12 @@ def process_image(request: gradio.Request | None, width: int, height: int) -> No
 				"n_iter": 1,
 			},
 		):
-			frame_processor_module.process_image(facefusion.globals.source_path, facefusion.globals.output_path, facefusion.globals.output_path)
+			frame_processor_module.get_frame_processor(kwargs)
+			frame = frame_processor_module.process_image_frame(frame, kwargs)
 		frame_processor_module.post_process()
 	# compress image
 	update_status(wording.get('compressing_image'))
-	if not compress_image(facefusion.globals.output_path):
+	if not compress_image(facefusion.globals.output_path, output_image_quality_slider):
 		update_status(wording.get('compressing_image_failed'))
 	# validate image
 	if is_image(facefusion.globals.target_path):
@@ -224,20 +302,41 @@ def process_image(request: gradio.Request | None, width: int, height: int) -> No
 		update_status(wording.get('processing_image_failed'))
 
 
-def process_video(request: gradio.Request | None, width: int, height: int) -> None:
-	if predict_video(facefusion.globals.target_path):
+def process_video(
+	request: gradio.Request | None,
+	width: int,
+	height: int,
+	frame_processors_checkbox_group: list[str],
+	common_options_checkbox_group: list[str],
+	temp_frame_format_dropdown: str,
+	temp_frame_quality_slider: int,
+	output_video_encoder_dropdown: str,
+	output_video_quality_slider: int,
+	trim_frame_start_slider: int,
+	trim_frame_end_slider: int,
+	kwargs: dict[str, Any],
+) -> None:
+	target_video = kwargs["target_video"]
+	if predict_video(target_video):
 		return
-	fps = detect_fps(facefusion.globals.target_path) if facefusion.globals.keep_fps else 25.0
+	fps = detect_fps(target_video) if "keep_fps" in common_options_checkbox_group else 25.0
 	# create temp
 	update_status(wording.get('creating_temp'))
-	create_temp(facefusion.globals.target_path)
+	create_temp(target_video)
 	# extract frames
 	update_status(wording.get('extracting_frames_fps').format(fps = fps))
-	extract_frames(facefusion.globals.target_path, fps)
+	extract_frames(
+		target_video,
+		fps,
+		temp_frame_format_dropdown,
+		temp_frame_quality_slider,
+		trim_frame_start_slider,
+		trim_frame_end_slider,
+	)
 	# process frame
-	temp_frame_paths = get_temp_frame_paths(facefusion.globals.target_path)
+	temp_frame_paths = get_temp_frame_paths(target_video, temp_frame_format_dropdown)
 	if temp_frame_paths:
-		for frame_processor_module in get_frame_processors_modules(facefusion.globals.frame_processors):
+		for frame_processor_module in get_frame_processors_modules(frame_processors_checkbox_group):
 			update_status(wording.get('processing'), frame_processor_module.NAME)
 			with monitor_call_context(
 				request,
@@ -249,23 +348,35 @@ def process_video(request: gradio.Request | None, width: int, height: int) -> No
 					"n_iter": len(temp_frame_paths),
 				},
 			):
-				frame_processor_module.process_video(facefusion.globals.source_path, temp_frame_paths)
+				frame_processor_module.get_frame_processor(kwargs)
+				frame_processor_module.process_video_frame(temp_frame_paths, kwargs)
 			frame_processor_module.post_process()
 	else:
 		update_status(wording.get('temp_frames_not_found'))
 		return
 	# merge video
 	update_status(wording.get('merging_video_fps').format(fps = fps))
-	if not merge_video(facefusion.globals.target_path, fps):
+	if not merge_video(
+		target_video,
+		fps,
+		temp_frame_format_dropdown,
+		output_video_encoder_dropdown,
+		output_video_quality_slider,
+	):
 		update_status(wording.get('merging_video_failed'))
 		return
 	# handle audio
-	if facefusion.globals.skip_audio:
+	if "skip_audio" in common_options_checkbox_group:
 		update_status(wording.get('skipping_audio'))
 		move_temp(facefusion.globals.target_path, facefusion.globals.output_path)
 	else:
 		update_status(wording.get('restoring_audio'))
-		if not restore_audio(facefusion.globals.target_path, facefusion.globals.output_path):
+		if not restore_audio(
+			facefusion.globals.target_path,
+			facefusion.globals.output_path,
+			trim_frame_start_slider,
+			trim_frame_end_slider,
+		):
 			update_status(wording.get('restoring_audio_failed'))
 			move_temp(facefusion.globals.target_path, facefusion.globals.output_path)
 	# clear temp

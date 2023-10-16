@@ -15,7 +15,8 @@ def render() -> None:
 	global SOURCE_FILE
 	global SOURCE_IMAGE
 
-	is_source_image = is_image(facefusion.globals.source_path)
+	# is_source_image = is_image(facefusion.globals.source_path)
+	is_source_image = False
 	SOURCE_FILE = gradio.File(
 		file_count = 'single',
 		file_types =

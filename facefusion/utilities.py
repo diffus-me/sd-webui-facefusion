@@ -41,11 +41,18 @@ def open_ffmpeg(args : List[str]) -> subprocess.Popen[bytes]:
 	return subprocess.Popen(commands, stdin = subprocess.PIPE)
 
 
-def extract_frames(target_path : str, fps : float) -> bool:
-	temp_frame_compression = round(31 - (facefusion.globals.temp_frame_quality * 0.31))
-	trim_frame_start = facefusion.globals.trim_frame_start
-	trim_frame_end = facefusion.globals.trim_frame_end
-	temp_frames_pattern = get_temp_frames_pattern(target_path, '%04d')
+def extract_frames(
+	target_path: str,
+	fps: float,
+	temp_frame_format_dropdown: str,
+	temp_frame_quality_slider: int,
+	trim_frame_start_slider: int,
+	trim_frame_end_slider: int,
+) -> bool:
+	temp_frame_compression = round(31 - (temp_frame_quality_slider * 0.31))
+	trim_frame_start = trim_frame_start_slider
+	trim_frame_end = trim_frame_end_slider
+	temp_frames_pattern = get_temp_frames_pattern(target_path, '%04d', temp_frame_format_dropdown)
 	commands = [ '-hwaccel', 'auto', '-i', target_path, '-q:v', str(temp_frame_compression), '-pix_fmt', 'rgb24' ]
 	if trim_frame_start is not None and trim_frame_end is not None:
 		commands.extend([ '-vf', 'trim=start_frame=' + str(trim_frame_start) + ':end_frame=' + str(trim_frame_end) + ',fps=' + str(fps) ])
@@ -59,33 +66,44 @@ def extract_frames(target_path : str, fps : float) -> bool:
 	return run_ffmpeg(commands)
 
 
-def compress_image(output_path : str) -> bool:
-	output_image_compression = round(31 - (facefusion.globals.output_image_quality * 0.31))
+def compress_image(output_path : str, output_image_quality: int) -> bool:
+	output_image_compression = round(31 - (output_image_quality * 0.31))
 	commands = [ '-hwaccel', 'auto', '-i', output_path, '-q:v', str(output_image_compression), '-y', output_path ]
 	return run_ffmpeg(commands)
 
 
-def merge_video(target_path : str, fps : float) -> bool:
+def merge_video(
+	target_path: str,
+	fps: float,
+	temp_frame_format_dropdown: str,
+	output_video_encoder_dropdown: str,
+	output_video_quality_slider: int,
+) -> bool:
 	temp_output_video_path = get_temp_output_video_path(target_path)
-	temp_frames_pattern = get_temp_frames_pattern(target_path, '%04d')
-	commands = [ '-hwaccel', 'auto', '-r', str(fps), '-i', temp_frames_pattern, '-c:v', facefusion.globals.output_video_encoder ]
-	if facefusion.globals.output_video_encoder in [ 'libx264', 'libx265' ]:
-		output_video_compression = round(51 - (facefusion.globals.output_video_quality * 0.51))
+	temp_frames_pattern = get_temp_frames_pattern(target_path, '%04d',  temp_frame_format_dropdown)
+	commands = [ '-hwaccel', 'auto', '-r', str(fps), '-i', temp_frames_pattern, '-c:v', output_video_encoder_dropdown ]
+	if output_video_encoder_dropdown in [ 'libx264', 'libx265' ]:
+		output_video_compression = round(51 - (output_video_quality_slider * 0.51))
 		commands.extend([ '-crf', str(output_video_compression) ])
-	if facefusion.globals.output_video_encoder in [ 'libvpx-vp9' ]:
-		output_video_compression = round(63 - (facefusion.globals.output_video_quality * 0.63))
+	if output_video_encoder_dropdown in [ 'libvpx-vp9' ]:
+		output_video_compression = round(63 - (output_video_quality_slider * 0.63))
 		commands.extend([ '-crf', str(output_video_compression) ])
-	if facefusion.globals.output_video_encoder in [ 'h264_nvenc', 'hevc_nvenc' ]:
-		output_video_compression = round(51 - (facefusion.globals.output_video_quality * 0.51))
+	if output_video_encoder_dropdown in [ 'h264_nvenc', 'hevc_nvenc' ]:
+		output_video_compression = round(51 - (output_video_quality_slider * 0.51))
 		commands.extend([ '-cq', str(output_video_compression) ])
 	commands.extend([ '-pix_fmt', 'yuv420p', '-colorspace', 'bt709', '-y', temp_output_video_path ])
 	return run_ffmpeg(commands)
 
 
-def restore_audio(target_path : str, output_path : str) -> bool:
+def restore_audio(
+	target_path: str,
+	output_path: str,
+	trim_frame_start_slider: int,
+	trim_frame_end_slider: int,
+) -> bool:
 	fps = detect_fps(target_path)
-	trim_frame_start = facefusion.globals.trim_frame_start
-	trim_frame_end = facefusion.globals.trim_frame_end
+	trim_frame_start = trim_frame_start_slider
+	trim_frame_end = trim_frame_end_slider
 	temp_output_video_path = get_temp_output_video_path(target_path)
 	commands = [ '-hwaccel', 'auto', '-i', temp_output_video_path ]
 	if trim_frame_start is not None:
@@ -98,14 +116,14 @@ def restore_audio(target_path : str, output_path : str) -> bool:
 	return run_ffmpeg(commands)
 
 
-def get_temp_frame_paths(target_path : str) -> List[str]:
-	temp_frames_pattern = get_temp_frames_pattern(target_path, '*')
+def get_temp_frame_paths(target_path : str, temp_frame_format_dropdown: str) -> List[str]:
+	temp_frames_pattern = get_temp_frames_pattern(target_path, '*', temp_frame_format_dropdown)
 	return sorted(glob.glob(temp_frames_pattern))
 
 
-def get_temp_frames_pattern(target_path : str, temp_frame_prefix : str) -> str:
+def get_temp_frames_pattern(target_path : str, temp_frame_prefix : str, temp_frame_format_dropdown: str) -> str:
 	temp_directory_path = get_temp_directory_path(target_path)
-	return os.path.join(temp_directory_path, temp_frame_prefix + '.' + facefusion.globals.temp_frame_format)
+	return os.path.join(temp_directory_path, temp_frame_prefix + '.' + temp_frame_format_dropdown)
 
 
 def get_temp_directory_path(target_path : str) -> str:

@@ -47,19 +47,23 @@ def render() -> None:
 	register_ui_component("trim_frame_end_slider", TRIM_FRAME_END_SLIDER)
 
 def listen() -> None:
-	TRIM_FRAME_START_SLIDER.change(update_trim_frame_start, inputs = TRIM_FRAME_START_SLIDER)
-	TRIM_FRAME_END_SLIDER.change(update_trim_frame_end, inputs = TRIM_FRAME_END_SLIDER)
+	# TRIM_FRAME_START_SLIDER.change(update_trim_frame_start, inputs = TRIM_FRAME_START_SLIDER)
+	# TRIM_FRAME_END_SLIDER.change(update_trim_frame_end, inputs = TRIM_FRAME_END_SLIDER)
 	target_video = get_ui_component('target_video')
 	if target_video:
 		for method in [ 'upload', 'change', 'clear' ]:
-			getattr(target_video, method)(remote_update, outputs = [ TRIM_FRAME_START_SLIDER, TRIM_FRAME_END_SLIDER ])
+			getattr(target_video, method)(
+				remote_update,
+				inputs = [ target_video ],
+				outputs = [ TRIM_FRAME_START_SLIDER, TRIM_FRAME_END_SLIDER ],
+			)
 
 
-def remote_update() -> Tuple[Update, Update]:
-	if is_video(facefusion.globals.target_path):
-		video_frame_total = count_video_frame_total(facefusion.globals.target_path)
-		facefusion.globals.trim_frame_start = None
-		facefusion.globals.trim_frame_end = None
+def remote_update(target_video: str | None) -> Tuple[Update, Update]:
+	if target_video is not None:
+		video_frame_total = count_video_frame_total(target_video)
+		# facefusion.globals.trim_frame_start = None
+		# facefusion.globals.trim_frame_end = None
 		return gradio.update(value = 0, maximum = video_frame_total, visible = True), gradio.update(value = video_frame_total, maximum = video_frame_total, visible = True)
 	return gradio.update(value = None, maximum = None, visible = False), gradio.update(value = None, maximum = None, visible = False)
 

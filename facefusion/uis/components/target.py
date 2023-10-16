@@ -18,8 +18,10 @@ def render() -> None:
 	global TARGET_IMAGE
 	global TARGET_VIDEO
 
-	is_target_image = is_image(facefusion.globals.target_path)
-	is_target_video = is_video(facefusion.globals.target_path)
+	# is_target_image = is_image(facefusion.globals.target_path)
+	# is_target_video = is_video(facefusion.globals.target_path)
+	is_target_image = False
+	is_target_video = False
 	TARGET_FILE = gradio.File(
 		label = wording.get('target_file_label'),
 		file_count = 'single',
@@ -35,7 +37,6 @@ def render() -> None:
 	TARGET_IMAGE = gradio.Image(
 		value = TARGET_FILE.value['name'] if is_target_image else None,
 		interactive = False,
-		type='pil',
 		visible = is_target_image,
 		show_label = False
 	)

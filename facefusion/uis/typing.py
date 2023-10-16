@@ -32,6 +32,13 @@ ComponentName = Literal\
 	'id_task',
 	'width',
 	'height',
+	'reference_face_position_gallery_index',
+	'output_image_quality_slider',
+	'temp_frame_format_dropdown',
+	'temp_frame_quality_slider',
+	'output_video_encoder_dropdown',
+	'output_video_quality_slider',
+	'common_options_checkbox_group',
 ]
 WebcamMode = Literal[ 'inline', 'udp', 'v4l2' ]
 StreamMode = Literal[ 'udp', 'v4l2' ]

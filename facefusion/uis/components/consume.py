@@ -1,7 +1,7 @@
 import cv2
 import gradio
-from PIL import Image
 
+from facefusion.typing import Frame
 from facefusion.uis.core import get_ui_component, register_ui_component
 from facefusion.uis.typing import Update
 
@@ -86,8 +86,9 @@ def _update_video_resolution(video_path: str) -> tuple[Update, Update]:
     return gradio.update(value=None), gradio.update(value=None)
 
 
-def _update_image_resolution(image: Image.Image) -> tuple[Update, Update]:
+def _update_image_resolution(image: Frame | None) -> tuple[Update, Update]:
     if image is not None:
-        return gradio.update(value=image.width), gradio.update(value=image.height)
+        shape = image.shape
+        return gradio.update(value=shape[1]), gradio.update(value=shape[0])
 
     return gradio.update(value=None), gradio.update(value=None)

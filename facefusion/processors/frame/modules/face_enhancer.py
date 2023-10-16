@@ -9,7 +9,7 @@ import facefusion.globals
 from facefusion import wording
 from facefusion.core import update_status
 from facefusion.face_analyser import get_many_faces, clear_face_analyser
-from facefusion.typing import Face, Frame, Matrix, Update_Process, ProcessMode, ModelValue, OptionsWithModel
+from facefusion.typing import Face, FaceAnalyserAge, FaceAnalyserDirection, FaceAnalyserGender, FaceRecognition, Frame, Matrix, Update_Process, ProcessMode, ModelValue, OptionsWithModel
 from facefusion.utilities import conditional_download, resolve_relative_path, is_image, is_video, is_file, is_download_done
 from facefusion.vision import read_image, read_static_image, write_image
 from facefusion.processors.frame import globals as frame_processors_globals
@@ -50,14 +50,19 @@ MODELS : Dict[str, ModelValue] =\
 OPTIONS : Optional[OptionsWithModel] = None
 
 
-def get_frame_processor() -> Any:
-	global FRAME_PROCESSOR
+# def get_frame_processor() -> Any:
+# 	global FRAME_PROCESSOR
 
-	with THREAD_LOCK:
-		if FRAME_PROCESSOR is None:
-			model_path = get_options('model').get('path')
-			FRAME_PROCESSOR = onnxruntime.InferenceSession(model_path, providers = facefusion.globals.execution_providers)
-	return FRAME_PROCESSOR
+# 	with THREAD_LOCK:
+# 		if FRAME_PROCESSOR is None:
+# 			model_path = get_options('model').get('path')
+# 			FRAME_PROCESSOR = onnxruntime.InferenceSession(model_path, providers = facefusion.globals.execution_providers)
+# 	return FRAME_PROCESSOR
+
+def get_frame_processor(kwargs: dict[str, Any]) -> None:
+	model_name = kwargs["face_enhancer_model"]
+	model_path = MODELS[model_name]["path"]
+	kwargs["face_enhancer_frame_processor"] = onnxruntime.InferenceSession(model_path, providers = facefusion.globals.execution_providers)
 
 
 def clear_frame_processor() -> None:
@@ -102,16 +107,17 @@ def pre_check() -> bool:
 	return True
 
 
-def pre_process(mode : ProcessMode) -> bool:
-	model_url = get_options('model').get('url')
-	model_path = get_options('model').get('path')
+def pre_process(mode : ProcessMode, kwargs: dict[str, Any]) -> bool:
+	model_name = kwargs["face_enhancer_model"]
+	model_url = MODELS[model_name]["url"]
+	model_path = MODELS[model_name]["path"]
 	if not facefusion.globals.skip_download and not is_download_done(model_url, model_path):
 		update_status(wording.get('model_download_not_done') + wording.get('exclamation_mark'), NAME)
 		return False
 	elif not is_file(model_path):
 		update_status(wording.get('model_file_not_present') + wording.get('exclamation_mark'), NAME)
 		return False
-	if mode in [ 'output', 'preview' ] and not is_image(facefusion.globals.target_path) and not is_video(facefusion.globals.target_path):
+	if mode in [ 'output', 'preview' ] and kwargs["target_image"] is None and kwargs["target_video"] is None:
 		update_status(wording.get('select_image_or_video_target') + wording.get('exclamation_mark'), NAME)
 		return False
 	if mode == 'output' and not facefusion.globals.output_path:
@@ -126,8 +132,13 @@ def post_process() -> None:
 	read_static_image.cache_clear()
 
 
-def enhance_face(target_face: Face, temp_frame: Frame) -> Frame:
-	frame_processor = get_frame_processor()
+def enhance_face(
+	target_face: Face,
+	temp_frame: Frame,
+	frame_processor: Any,
+	blend: int
+) -> Frame:
+	# frame_processor = get_frame_processor()
 	crop_frame, affine_matrix = warp_face(target_face, temp_frame)
 	crop_frame = prepare_crop_frame(crop_frame)
 	frame_processor_inputs = {}
@@ -140,7 +151,7 @@ def enhance_face(target_face: Face, temp_frame: Frame) -> Frame:
 		crop_frame = frame_processor.run(None, frame_processor_inputs)[0][0]
 	crop_frame = normalize_crop_frame(crop_frame)
 	paste_frame = paste_back(temp_frame, crop_frame, affine_matrix)
-	temp_frame = blend_frame(temp_frame, paste_frame)
+	temp_frame = blend_frame(temp_frame, paste_frame, blend)
 	return temp_frame
 
 
@@ -194,24 +205,39 @@ def paste_back(temp_frame : Frame, crop_frame : Frame, affine_matrix : Matrix) -
 	return temp_frame
 
 
-def blend_frame(temp_frame : Frame, paste_frame : Frame) -> Frame:
-	face_enhancer_blend = 1 - (frame_processors_globals.face_enhancer_blend / 100)
+def blend_frame(temp_frame : Frame, paste_frame : Frame, blend: int) -> Frame:
+	face_enhancer_blend = 1 - (blend / 100)
 	temp_frame = cv2.addWeighted(temp_frame, face_enhancer_blend, paste_frame, 1 - face_enhancer_blend, 0)
 	return temp_frame
 
 
-def process_frame(source_face : Face, reference_face : Face, temp_frame : Frame) -> Frame:
-	many_faces = get_many_faces(temp_frame)
+def process_frame(source_face : Face, reference_face : Face, temp_frame : Frame, kwargs : dict[str, Any]) -> Frame:
+	many_faces = get_many_faces(
+		temp_frame,
+		kwargs["face_analyser_direction"],
+		kwargs["face_analyser_age"],
+		kwargs["face_analyser_gender"],
+	)
 	if many_faces:
 		for target_face in many_faces:
-			temp_frame = enhance_face(target_face, temp_frame)
+			temp_frame = enhance_face(
+				target_face,
+				temp_frame,
+				kwargs["face_enhancer_frame_processor"],
+				kwargs["face_enhancer_blend_slider"],
+			)
 	return temp_frame
 
 
-def process_frames(source_path : str, temp_frame_paths : List[str], update_progress : Update_Process) -> None:
+def process_frames(
+	reference_face: Face | None,
+	temp_frame_paths: List[str],
+	update_progress : Update_Process,
+	kwargs: dict[str, Any],
+) -> None:
 	for temp_frame_path in temp_frame_paths:
 		temp_frame = read_image(temp_frame_path)
-		result_frame = process_frame(None, None, temp_frame)
+		result_frame = process_frame(None, None, temp_frame, kwargs)
 		write_image(temp_frame_path, result_frame)
 		update_progress()
 
@@ -221,6 +247,13 @@ def process_image(source_path : str, target_path : str, output_path : str) -> No
 	result_frame = process_frame(None, None, target_frame)
 	write_image(output_path, result_frame)
 
+def process_image_frame(frame: Frame, kwargs: dict[str, Any]) -> None:
+	return process_frame(None, None, frame, kwargs)
+
 
 def process_video(source_path : str, temp_frame_paths : List[str]) -> None:
 	facefusion.processors.frame.core.multi_process_frames(None, temp_frame_paths, process_frames)
+
+
+def process_video_frame(temp_frame_paths: List[str], kwargs: dict[str, Any]) -> None:
+	facefusion.processors.frame.core.multi_process_frames(None, temp_frame_paths, process_frames, kwargs)

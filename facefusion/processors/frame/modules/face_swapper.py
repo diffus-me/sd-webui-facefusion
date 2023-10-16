@@ -9,7 +9,7 @@ from facefusion import wording
 from facefusion.core import update_status
 from facefusion.face_analyser import get_one_face, get_many_faces, find_similar_faces, clear_face_analyser
 from facefusion.face_reference import get_face_reference, set_face_reference
-from facefusion.typing import Face, Frame, Update_Process, ProcessMode, ModelValue, OptionsWithModel
+from facefusion.typing import Face, FaceAnalyserAge, FaceAnalyserDirection, FaceAnalyserGender, FaceRecognition, Frame, Update_Process, ProcessMode, ModelValue, OptionsWithModel
 from facefusion.utilities import conditional_download, resolve_relative_path, is_image, is_video, is_file, is_download_done
 from facefusion.vision import read_image, read_static_image, write_image
 from facefusion.processors.frame import globals as frame_processors_globals
@@ -34,14 +34,19 @@ MODELS : Dict[str, ModelValue] =\
 OPTIONS : Optional[OptionsWithModel] = None
 
 
-def get_frame_processor() -> Any:
-	global FRAME_PROCESSOR
+# def get_frame_processor() -> Any:
+# 	global FRAME_PROCESSOR
 
-	with THREAD_LOCK:
-		if FRAME_PROCESSOR is None:
-			model_path = get_options('model').get('path')
-			FRAME_PROCESSOR = insightface.model_zoo.get_model(model_path, providers = facefusion.globals.execution_providers)
-	return FRAME_PROCESSOR
+# 	with THREAD_LOCK:
+# 		if FRAME_PROCESSOR is None:
+# 			model_path = get_options('model').get('path')
+# 			FRAME_PROCESSOR = insightface.model_zoo.get_model(model_path, providers = facefusion.globals.execution_providers)
+# 	return FRAME_PROCESSOR
+
+def get_frame_processor(kwargs: dict[str, Any]) -> None:
+	model_name = kwargs["face_swapper_model"]
+	model_path = MODELS[model_name]["path"]
+	kwargs["face_swapper_frame_processor"] = insightface.model_zoo.get_model(model_path, providers = facefusion.globals.execution_providers)
 
 
 def clear_frame_processor() -> None:
@@ -84,22 +89,29 @@ def pre_check() -> bool:
 	return True
 
 
-def pre_process(mode : ProcessMode) -> bool:
-	model_url = get_options('model').get('url')
-	model_path = get_options('model').get('path')
+def pre_process(mode : ProcessMode, kwargs: dict[str, Any]) -> bool:
+	model_name = kwargs["face_swapper_model"]
+	model_url = MODELS[model_name]["url"]
+	model_path = MODELS[model_name]["path"]
 	if not facefusion.globals.skip_download and not is_download_done(model_url, model_path):
 		update_status(wording.get('model_download_not_done') + wording.get('exclamation_mark'), NAME)
 		return False
 	elif not is_file(model_path):
 		update_status(wording.get('model_file_not_present') + wording.get('exclamation_mark'), NAME)
 		return False
-	if not is_image(facefusion.globals.source_path):
+	if kwargs["source_image"] is None:
 		update_status(wording.get('select_image_source') + wording.get('exclamation_mark'), NAME)
 		return False
-	elif not get_one_face(read_static_image(facefusion.globals.source_path)):
+	elif not get_one_face(
+		kwargs["source_image"],
+		0,
+		kwargs["face_analyser_direction"],
+		kwargs["face_analyser_age"],
+		kwargs["face_analyser_gender"],
+	):
 		update_status(wording.get('no_source_face_detected') + wording.get('exclamation_mark'), NAME)
 		return False
-	if mode in [ 'output', 'preview' ] and not is_image(facefusion.globals.target_path) and not is_video(facefusion.globals.target_path):
+	if mode in [ 'output', 'preview' ] and kwargs["target_image"] is None and kwargs["target_video"] is None:
 		update_status(wording.get('select_image_or_video_target') + wording.get('exclamation_mark'), NAME)
 		return False
 	if mode == 'output' and not facefusion.globals.output_path:
@@ -114,30 +126,52 @@ def post_process() -> None:
 	read_static_image.cache_clear()
 
 
-def swap_face(source_face : Face, target_face : Face, temp_frame : Frame) -> Frame:
-	return get_frame_processor().get(temp_frame, target_face, source_face, paste_back = True)
+def swap_face(source_face : Face, target_face : Face, temp_frame : Frame, frame_processor: Any) -> Frame:
+	return frame_processor.get(temp_frame, target_face, source_face, paste_back = True)
 
 
-def process_frame(source_face : Face, reference_face : Face, temp_frame : Frame) -> Frame:
-	if 'reference' in facefusion.globals.face_recognition:
-		similar_faces = find_similar_faces(temp_frame, reference_face, facefusion.globals.reference_face_distance)
+def process_frame(source_face : Face, reference_face : Face, temp_frame : Frame, kwargs: dict[str, Any]) -> Frame:
+	if kwargs["face_recognition_dropdown"] == "reference":
+		similar_faces = find_similar_faces(
+			temp_frame,
+			reference_face,
+			kwargs["reference_face_distance_slider"],
+			kwargs["face_analyser_direction"],
+			kwargs["face_analyser_age"],
+			kwargs["face_analyser_gender"],
+		)
 		if similar_faces:
 			for similar_face in similar_faces:
-				temp_frame = swap_face(source_face, similar_face, temp_frame)
-	if 'many' in facefusion.globals.face_recognition:
-		many_faces = get_many_faces(temp_frame)
+				temp_frame = swap_face(source_face, similar_face, temp_frame, kwargs["face_swapper_frame_processor"])
+	else:
+		many_faces = get_many_faces(
+			temp_frame,
+			kwargs["face_analyser_direction"],
+			kwargs["face_analyser_age"],
+			kwargs["face_analyser_gender"],
+		)
 		if many_faces:
 			for target_face in many_faces:
-				temp_frame = swap_face(source_face, target_face, temp_frame)
+				temp_frame = swap_face(source_face, target_face, temp_frame, kwargs["face_swapper_frame_processor"])
 	return temp_frame
 
 
-def process_frames(source_path : str, temp_frame_paths : List[str], update_progress : Update_Process) -> None:
-	source_face = get_one_face(read_static_image(source_path))
-	reference_face = get_face_reference() if 'reference' in facefusion.globals.face_recognition else None
+def process_frames(
+	reference_face: Face | None,
+	temp_frame_paths: List[str],
+	update_progress : Update_Process,
+	kwargs: dict[str, Any],
+) -> None:
+	source_face = get_one_face(
+		kwargs["source_image"],
+		0,
+		kwargs["face_analyser_direction"],
+		kwargs["face_analyser_age"],
+		kwargs["face_analyser_gender"],
+	)
 	for temp_frame_path in temp_frame_paths:
 		temp_frame = read_image(temp_frame_path)
-		result_frame = process_frame(source_face, reference_face, temp_frame)
+		result_frame = process_frame(source_face, reference_face, temp_frame, kwargs)
 		write_image(temp_frame_path, result_frame)
 		update_progress()
 
@@ -149,10 +183,46 @@ def process_image(source_path : str, target_path : str, output_path : str) -> No
 	result_frame = process_frame(source_face, reference_face, target_frame)
 	write_image(output_path, result_frame)
 
+def process_image_frame(frame: Frame, kwargs: dict[str, Any]) -> Frame:
+	source_face = get_one_face(
+		kwargs["source_image"],
+		0,
+		kwargs["face_analyser_direction"],
+		kwargs["face_analyser_age"],
+		kwargs["face_analyser_gender"],
+	)
+	if kwargs["face_recognition_dropdown"] == "reference":
+		reference_face = get_one_face(
+			frame,
+			kwargs["reference_face_position_gallery_index"],
+			kwargs["face_analyser_direction"],
+			kwargs["face_analyser_age"],
+			kwargs["face_analyser_gender"],
+		)
+	else:
+		reference_face = None
+
+	return process_frame(source_face, reference_face, frame, kwargs)
+
 
 def process_video(source_path : str, temp_frame_paths : List[str]) -> None:
 	conditional_set_face_reference(temp_frame_paths)
 	frame_processors.multi_process_frames(source_path, temp_frame_paths, process_frames)
+
+def process_video_frame(temp_frame_paths: List[str], kwargs: dict[str, Any]) -> None:
+	if kwargs["face_recognition_dropdown"] == "reference":
+		reference_frame = read_static_image(temp_frame_paths[kwargs["preview_frame_slider"]])
+		reference_face = get_one_face(
+			reference_frame,
+			kwargs["reference_face_position_gallery_index"],
+			kwargs["face_analyser_direction"],
+			kwargs["face_analyser_age"],
+			kwargs["face_analyser_gender"],
+		)
+	else:
+		reference_face = None
+
+	frame_processors.multi_process_frames(reference_face, temp_frame_paths, process_frames, kwargs)
 
 
 def conditional_set_face_reference(temp_frame_paths : List[str]) -> None:

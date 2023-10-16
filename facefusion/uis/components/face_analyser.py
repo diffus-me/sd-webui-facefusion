@@ -38,9 +38,10 @@ def render() -> None:
 
 
 def listen() -> None:
-	FACE_ANALYSER_DIRECTION_DROPDOWN.select(lambda value: update_dropdown('face_analyser_direction', value), inputs = FACE_ANALYSER_DIRECTION_DROPDOWN)
-	FACE_ANALYSER_AGE_DROPDOWN.select(lambda value: update_dropdown('face_analyser_age', value), inputs = FACE_ANALYSER_AGE_DROPDOWN)
-	FACE_ANALYSER_GENDER_DROPDOWN.select(lambda value: update_dropdown('face_analyser_gender', value), inputs = FACE_ANALYSER_GENDER_DROPDOWN)
+	# FACE_ANALYSER_DIRECTION_DROPDOWN.select(lambda value: update_dropdown('face_analyser_direction', value), inputs = FACE_ANALYSER_DIRECTION_DROPDOWN)
+	# FACE_ANALYSER_AGE_DROPDOWN.select(lambda value: update_dropdown('face_analyser_age', value), inputs = FACE_ANALYSER_AGE_DROPDOWN)
+	# FACE_ANALYSER_GENDER_DROPDOWN.select(lambda value: update_dropdown('face_analyser_gender', value), inputs = FACE_ANALYSER_GENDER_DROPDOWN)
+	pass
 
 
 def update_dropdown(name : str, value : str) -> None:

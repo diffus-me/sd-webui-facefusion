@@ -34,13 +34,15 @@ def render() -> None:
 		step = 1,
 		minimum = 0,
 		maximum = 100,
-		visible = is_image(facefusion.globals.target_path)
+		# visible = is_image(facefusion.globals.target_path)
+		visible = False,
 	)
 	OUTPUT_VIDEO_ENCODER_DROPDOWN = gradio.Dropdown(
 		label = wording.get('output_video_encoder_dropdown_label'),
 		choices = facefusion.choices.output_video_encoders,
 		value = facefusion.globals.output_video_encoder,
-		visible = is_video(facefusion.globals.target_path)
+		# visible = is_video(facefusion.globals.target_path)
+		visible = False
 	)
 	OUTPUT_VIDEO_QUALITY_SLIDER = gradio.Slider(
 		label = wording.get('output_video_quality_slider_label'),
@@ -48,27 +50,60 @@ def render() -> None:
 		step = 1,
 		minimum = 0,
 		maximum = 100,
-		visible = is_video(facefusion.globals.target_path)
+		# visible = is_video(facefusion.globals.target_path)
+		visible = False
 	)
 	register_ui_component('output_path_textbox', OUTPUT_PATH_TEXTBOX)
+	register_ui_component('output_image_quality_slider', OUTPUT_IMAGE_QUALITY_SLIDER)
+	register_ui_component('output_video_encoder_dropdown', OUTPUT_VIDEO_ENCODER_DROPDOWN)
+	register_ui_component('output_video_quality_slider', OUTPUT_VIDEO_QUALITY_SLIDER)
 
+
+# def listen() -> None:
+	# OUTPUT_PATH_TEXTBOX.change(update_output_path, inputs = OUTPUT_PATH_TEXTBOX)
+	# OUTPUT_IMAGE_QUALITY_SLIDER.change(update_output_image_quality, inputs = OUTPUT_IMAGE_QUALITY_SLIDER)
+	# OUTPUT_VIDEO_ENCODER_DROPDOWN.select(update_output_video_encoder, inputs = OUTPUT_VIDEO_ENCODER_DROPDOWN)
+	# OUTPUT_VIDEO_QUALITY_SLIDER.change(update_output_video_quality, inputs = OUTPUT_VIDEO_QUALITY_SLIDER)
+	# multi_component_names : List[ComponentName] =\
+	# [
+	# 	'source_image',
+	# 	'target_image',
+	# 	'target_video'
+	# ]
+	# for component_name in multi_component_names:
+	# 	component = get_ui_component(component_name)
+	# 	if component:
+	# 		for method in [ 'upload', 'change', 'clear' ]:
+	# 			getattr(component, method)(remote_update, outputs = [ OUTPUT_IMAGE_QUALITY_SLIDER, OUTPUT_VIDEO_ENCODER_DROPDOWN, OUTPUT_VIDEO_QUALITY_SLIDER ])
 
 def listen() -> None:
-	OUTPUT_PATH_TEXTBOX.change(update_output_path, inputs = OUTPUT_PATH_TEXTBOX)
-	OUTPUT_IMAGE_QUALITY_SLIDER.change(update_output_image_quality, inputs = OUTPUT_IMAGE_QUALITY_SLIDER)
-	OUTPUT_VIDEO_ENCODER_DROPDOWN.select(update_output_video_encoder, inputs = OUTPUT_VIDEO_ENCODER_DROPDOWN)
-	OUTPUT_VIDEO_QUALITY_SLIDER.change(update_output_video_quality, inputs = OUTPUT_VIDEO_QUALITY_SLIDER)
-	multi_component_names : List[ComponentName] =\
-	[
-		'source_image',
-		'target_image',
-		'target_video'
-	]
-	for component_name in multi_component_names:
-		component = get_ui_component(component_name)
-		if component:
-			for method in [ 'upload', 'change', 'clear' ]:
-				getattr(component, method)(remote_update, outputs = [ OUTPUT_IMAGE_QUALITY_SLIDER, OUTPUT_VIDEO_ENCODER_DROPDOWN, OUTPUT_VIDEO_QUALITY_SLIDER ])
+	target_image = get_ui_component("target_image")
+	if target_image:
+		for method in [ 'upload', 'change', 'clear' ]:
+			getattr(target_image, method)(
+				remote_update_image,
+				inputs = target_image,
+				outputs = [ OUTPUT_IMAGE_QUALITY_SLIDER, OUTPUT_VIDEO_ENCODER_DROPDOWN, OUTPUT_VIDEO_QUALITY_SLIDER ]
+			)
+	target_video = get_ui_component("target_video")
+	if target_video:
+		for method in [ 'upload', 'change', 'clear' ]:
+			getattr(target_video, method)(
+				remote_update_video,
+				inputs = target_video,
+				outputs = [ OUTPUT_IMAGE_QUALITY_SLIDER, OUTPUT_VIDEO_ENCODER_DROPDOWN, OUTPUT_VIDEO_QUALITY_SLIDER ]
+			)
+
+
+def remote_update_image(target_image) -> Tuple[Update, Update, Update]:
+	if target_image is not None:
+		return gradio.update(visible = True), gradio.update(visible = False), gradio.update(visible = False)
+	return gradio.update(visible = False), gradio.update(visible = False), gradio.update(visible = False)
+
+def remote_update_video(target_video) -> Tuple[Update, Update, Update]:
+	if target_video is not None:
+		return gradio.update(visible = False), gradio.update(visible = True), gradio.update(visible = True)
+	return gradio.update(visible = False), gradio.update(visible = False), gradio.update(visible = False)
 
 
 def remote_update() -> Tuple[Update, Update, Update]:

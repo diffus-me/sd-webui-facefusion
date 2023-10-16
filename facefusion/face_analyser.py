@@ -27,8 +27,19 @@ def clear_face_analyser() -> Any:
 	FACE_ANALYSER = None
 
 
-def get_one_face(frame : Frame, position : int = 0) -> Optional[Face]:
-	many_faces = get_many_faces(frame)
+def get_one_face(
+	frame: Frame,
+	position: int,
+	face_analyser_direction: FaceAnalyserDirection,
+	face_analyser_age: FaceAnalyserAge,
+	face_analyser_gender: FaceAnalyserGender,
+) -> Optional[Face]:
+	many_faces = get_many_faces(
+		frame,
+		face_analyser_direction,
+		face_analyser_age,
+		face_analyser_gender,
+	)
 	if many_faces:
 		try:
 			return many_faces[position]
@@ -37,7 +48,12 @@ def get_one_face(frame : Frame, position : int = 0) -> Optional[Face]:
 	return None
 
 
-def get_many_faces(frame : Frame) -> List[Face]:
+def get_many_faces(
+	frame: Frame,
+	face_analyser_direction: FaceAnalyserDirection,
+	face_analyser_age: FaceAnalyserAge,
+	face_analyser_gender: FaceAnalyserGender,
+) -> List[Face]:
 	try:
 		faces_cache = get_faces_cache(frame)
 		if faces_cache:
@@ -45,19 +61,31 @@ def get_many_faces(frame : Frame) -> List[Face]:
 		else:
 			faces = get_face_analyser().get(frame)
 			set_faces_cache(frame, faces)
-		if facefusion.globals.face_analyser_direction:
-			faces = sort_by_direction(faces, facefusion.globals.face_analyser_direction)
-		if facefusion.globals.face_analyser_age:
-			faces = filter_by_age(faces, facefusion.globals.face_analyser_age)
-		if facefusion.globals.face_analyser_gender:
-			faces = filter_by_gender(faces, facefusion.globals.face_analyser_gender)
+		if face_analyser_direction:
+			faces = sort_by_direction(faces, face_analyser_direction)
+		if face_analyser_age != "none":
+			faces = filter_by_age(faces, face_analyser_age)
+		if face_analyser_gender != "none":
+			faces = filter_by_gender(faces, face_analyser_gender)
 		return faces
 	except (AttributeError, ValueError):
 		return []
 
 
-def find_similar_faces(frame : Frame, reference_face : Face, face_distance : float) -> List[Face]:
-	many_faces = get_many_faces(frame)
+def find_similar_faces(
+	frame: Frame,
+	reference_face: Face,
+	face_distance: float,
+	face_analyser_direction: FaceAnalyserDirection,
+	face_analyser_age: FaceAnalyserAge,
+	face_analyser_gender: FaceAnalyserGender,
+) -> List[Face]:
+	many_faces = get_many_faces(
+		frame,
+		face_analyser_direction,
+		face_analyser_age,
+		face_analyser_gender,
+	)
 	similar_faces = []
 	if many_faces:
 		for face in many_faces:

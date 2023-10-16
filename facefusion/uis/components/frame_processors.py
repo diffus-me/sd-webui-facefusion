@@ -27,7 +27,7 @@ def listen() -> None:
 
 
 def update_frame_processors(frame_processors : List[str]) -> Update:
-	facefusion.globals.frame_processors = frame_processors
+	# facefusion.globals.frame_processors = frame_processors
 	clear_frame_processors_modules()
 	for frame_processor in frame_processors:
 		frame_processor_module = load_frame_processor_module(frame_processor)

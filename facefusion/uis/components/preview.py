@@ -4,7 +4,7 @@ import gradio
 
 import facefusion.globals
 from facefusion import wording
-from facefusion.typing import Frame, Face
+from facefusion.typing import FaceRecognition, Frame, Face, FaceAnalyserAge, FaceAnalyserDirection, FaceAnalyserGender
 from facefusion.vision import get_video_frame, count_video_frame_total, normalize_frame_color, resize_frame_dimension, read_static_image
 from facefusion.face_analyser import get_one_face
 from facefusion.face_reference import get_face_reference, set_face_reference
@@ -36,21 +36,21 @@ def render() -> None:
 		'maximum': 100,
 		'visible': False
 	}
-	conditional_set_face_reference()
-	source_face = get_one_face(read_static_image(facefusion.globals.source_path))
-	reference_face = get_face_reference() if 'reference' in facefusion.globals.face_recognition else None
-	if is_image(facefusion.globals.target_path):
-		target_frame = read_static_image(facefusion.globals.target_path)
-		preview_frame = process_preview_frame(source_face, reference_face, target_frame)
-		preview_image_args['value'] = normalize_frame_color(preview_frame)
-	if is_video(facefusion.globals.target_path):
-		temp_frame = get_video_frame(facefusion.globals.target_path, facefusion.globals.reference_frame_number)
-		preview_frame = process_preview_frame(source_face, reference_face, temp_frame)
-		preview_image_args['value'] = normalize_frame_color(preview_frame)
-		preview_image_args['visible'] = True
-		preview_frame_slider_args['value'] = facefusion.globals.reference_frame_number
-		preview_frame_slider_args['maximum'] = count_video_frame_total(facefusion.globals.target_path)
-		preview_frame_slider_args['visible'] = True
+	# conditional_set_face_reference()
+	# source_face = get_one_face(read_static_image(facefusion.globals.source_path))
+	# reference_face = get_face_reference() if 'reference' in facefusion.globals.face_recognition else None
+	# if is_image(facefusion.globals.target_path):
+	# 	target_frame = read_static_image(facefusion.globals.target_path)
+	# 	preview_frame = process_preview_frame(source_face, reference_face, target_frame)
+	# 	preview_image_args['value'] = normalize_frame_color(preview_frame)
+	# if is_video(facefusion.globals.target_path):
+	# 	temp_frame = get_video_frame(facefusion.globals.target_path, facefusion.globals.reference_frame_number)
+	# 	preview_frame = process_preview_frame(source_face, reference_face, temp_frame)
+	# 	preview_image_args['value'] = normalize_frame_color(preview_frame)
+	# 	preview_image_args['visible'] = True
+	# 	preview_frame_slider_args['value'] = facefusion.globals.reference_frame_number
+	# 	preview_frame_slider_args['maximum'] = count_video_frame_total(facefusion.globals.target_path)
+	# 	preview_frame_slider_args['visible'] = True
 	PREVIEW_IMAGE = gradio.Image(**preview_image_args)
 	PREVIEW_FRAME_SLIDER = gradio.Slider(**preview_frame_slider_args)
 	register_ui_component('preview_frame_slider', PREVIEW_FRAME_SLIDER)
@@ -58,10 +58,44 @@ def render() -> None:
 
 def listen() -> None:
 	id_task = get_ui_component("id_task")
+	source_image = get_ui_component("source_image")
+	target_image = get_ui_component("target_image")
+	target_video = get_ui_component("target_video")
+	face_recognition_dropdown = get_ui_component("face_recognition_dropdown")
+	frame_processors_checkbox_group = get_ui_component("frame_processors_checkbox_group")
+	face_swapper_model_dropdown = get_ui_component("face_swapper_model_dropdown")
+	face_enhancer_model_dropdown = get_ui_component("face_enhancer_model_dropdown")
+	frame_enhancer_model_dropdown = get_ui_component("frame_enhancer_model_dropdown")
+	reference_face_position_gallery_index = get_ui_component("reference_face_position_gallery_index")
+	face_analyser_direction_dropdown = get_ui_component("face_analyser_direction_dropdown")
+	face_analyser_age_dropdown = get_ui_component("face_analyser_age_dropdown")
+	face_analyser_gender_dropdown = get_ui_component("face_analyser_gender_dropdown")
+	reference_face_distance_slider = get_ui_component("reference_face_distance_slider")
+	face_enhancer_blend_slider = get_ui_component("face_enhancer_blend_slider")
+	frame_enhancer_blend_slider = get_ui_component("frame_enhancer_blend_slider")
+
 	PREVIEW_FRAME_SLIDER.change(
 		update_preview_image_wrapper,
 		_js="submit_facefusion_task",
-		inputs = [id_task, PREVIEW_FRAME_SLIDER],
+		inputs = [
+			id_task,
+			PREVIEW_FRAME_SLIDER,
+			source_image,
+			target_image,
+			target_video,
+			face_recognition_dropdown,
+			reference_face_position_gallery_index,
+			face_analyser_direction_dropdown,
+			face_analyser_age_dropdown,
+			face_analyser_gender_dropdown,
+			frame_processors_checkbox_group,
+			face_swapper_model_dropdown,
+			face_enhancer_model_dropdown,
+			frame_enhancer_model_dropdown,
+			reference_face_distance_slider,
+			face_enhancer_blend_slider,
+			frame_enhancer_blend_slider,
+		],
 		outputs = PREVIEW_IMAGE
 	)
 	multi_component_names : List[ComponentName] =\
@@ -77,7 +111,25 @@ def listen() -> None:
 				getattr(component, method)(
 					update_preview_image_wrapper,
 					_js="submit_facefusion_task",
-					inputs = [id_task, PREVIEW_FRAME_SLIDER],
+					inputs = [
+						id_task,
+						PREVIEW_FRAME_SLIDER,
+						source_image,
+						target_image,
+						target_video,
+						face_recognition_dropdown,
+						reference_face_position_gallery_index,
+						face_analyser_direction_dropdown,
+						face_analyser_age_dropdown,
+						face_analyser_gender_dropdown,
+						frame_processors_checkbox_group,
+						face_swapper_model_dropdown,
+						face_enhancer_model_dropdown,
+						frame_enhancer_model_dropdown,
+						reference_face_distance_slider,
+						face_enhancer_blend_slider,
+						frame_enhancer_blend_slider,
+					],
 					outputs = PREVIEW_IMAGE)
 				getattr(component, method)(update_preview_frame_slider, inputs = PREVIEW_FRAME_SLIDER, outputs = PREVIEW_FRAME_SLIDER)
 	update_component_names : List[ComponentName] =\
@@ -86,7 +138,8 @@ def listen() -> None:
 		'frame_processors_checkbox_group',
 		'face_swapper_model_dropdown',
 		'face_enhancer_model_dropdown',
-		'frame_enhancer_model_dropdown'
+		'frame_enhancer_model_dropdown',
+		'reference_face_position_gallery_index',
 	]
 	for component_name in update_component_names:
 		component = get_ui_component(component_name)
@@ -94,11 +147,29 @@ def listen() -> None:
 			component.change(
 				update_preview_image_wrapper,
 				_js="submit_facefusion_task",
-				inputs = [id_task, PREVIEW_FRAME_SLIDER],
+				inputs = [
+					id_task,
+					PREVIEW_FRAME_SLIDER,
+					source_image,
+					target_image,
+					target_video,
+					face_recognition_dropdown,
+					reference_face_position_gallery_index,
+					face_analyser_direction_dropdown,
+					face_analyser_age_dropdown,
+					face_analyser_gender_dropdown,
+					frame_processors_checkbox_group,
+					face_swapper_model_dropdown,
+					face_enhancer_model_dropdown,
+					frame_enhancer_model_dropdown,
+					reference_face_distance_slider,
+					face_enhancer_blend_slider,
+					frame_enhancer_blend_slider,
+				],
 				outputs = PREVIEW_IMAGE)
 	select_component_names : List[ComponentName] =\
 	[
-		'reference_face_position_gallery',
+		# 'reference_face_position_gallery',
 		'face_analyser_direction_dropdown',
 		'face_analyser_age_dropdown',
 		'face_analyser_gender_dropdown'
@@ -109,7 +180,25 @@ def listen() -> None:
 			component.select(
 				update_preview_image_wrapper,
 				_js="submit_facefusion_task",
-				inputs = [id_task, PREVIEW_FRAME_SLIDER],
+				inputs = [
+					id_task,
+					PREVIEW_FRAME_SLIDER,
+					source_image,
+					target_image,
+					target_video,
+					face_recognition_dropdown,
+					reference_face_position_gallery_index,
+					face_analyser_direction_dropdown,
+					face_analyser_age_dropdown,
+					face_analyser_gender_dropdown,
+					frame_processors_checkbox_group,
+					face_swapper_model_dropdown,
+					face_enhancer_model_dropdown,
+					frame_enhancer_model_dropdown,
+					reference_face_distance_slider,
+					face_enhancer_blend_slider,
+					frame_enhancer_blend_slider,
+				],
 				outputs = PREVIEW_IMAGE
 			)
 	change_component_names : List[ComponentName] =\
@@ -124,13 +213,55 @@ def listen() -> None:
 			component.change(
 				update_preview_image_wrapper,
 				_js="submit_facefusion_task",
-				inputs = [id_task, PREVIEW_FRAME_SLIDER],
+				inputs = [
+					id_task,
+					PREVIEW_FRAME_SLIDER,
+					source_image,
+					target_image,
+					target_video,
+					face_recognition_dropdown,
+					reference_face_position_gallery_index,
+					face_analyser_direction_dropdown,
+					face_analyser_age_dropdown,
+					face_analyser_gender_dropdown,
+					frame_processors_checkbox_group,
+					face_swapper_model_dropdown,
+					face_enhancer_model_dropdown,
+					frame_enhancer_model_dropdown,
+					reference_face_distance_slider,
+					face_enhancer_blend_slider,
+					frame_enhancer_blend_slider,
+				],
 				outputs = PREVIEW_IMAGE
 			)
 
 def update_preview_image_wrapper(
-	request: gradio.Request, id_task: str, frame_number: int = 0
+	request: gradio.Request,
+	id_task: str,
+	reference_frame_number: int,
+	source_image: Frame | None,
+	target_image: Frame | None,
+	target_video: str | None,
+	face_recognition_dropdown: FaceRecognition,
+	reference_face_position_gallery_index: int,
+	face_analyser_direction: FaceAnalyserDirection,
+	face_analyser_age: FaceAnalyserAge,
+	face_analyser_gender: FaceAnalyserGender,
+	frame_processors_checkbox_group: list[str],
+	face_swapper_model_dropdown: str,
+	face_enhancer_model_dropdown: str,
+	frame_enhancer_model_dropdown: str,
+	reference_face_distance_slider: float,
+	face_enhancer_blend_slider: int,
+	frame_enhancer_blend_slider: int,
 ) -> Update:
+	if source_image is None or (target_image is None and target_video is None):
+		return
+
+	source_image = cv2.cvtColor(source_image, cv2.COLOR_RGB2BGR)
+	if target_image is not None:
+		target_image = cv2.cvtColor(target_image, cv2.COLOR_RGB2BGR)
+
 	with monitor_call_context(
 		request,
 		"extensions.facefusion",
@@ -143,21 +274,112 @@ def update_preview_image_wrapper(
 		},
 		is_intermediate=False,
 	):
-		return update_preview_image(request, frame_number)
+		return update_preview_image(
+			request,
+			reference_frame_number,
+			source_image,
+			target_image,
+			target_video,
+			face_recognition_dropdown,
+			reference_face_position_gallery_index,
+			face_analyser_direction,
+			face_analyser_age,
+			face_analyser_gender,
+			frame_processors_checkbox_group,
+			face_swapper_model_dropdown,
+			face_enhancer_model_dropdown,
+			frame_enhancer_model_dropdown,
+			reference_face_distance_slider,
+			face_enhancer_blend_slider,
+			frame_enhancer_blend_slider,
+		)
 
-def update_preview_image(request: gradio.Request, frame_number : int = 0) -> Update:
-	conditional_set_face_reference()
-	source_face = get_one_face(read_static_image(facefusion.globals.source_path))
-	reference_face = get_face_reference() if 'reference' in facefusion.globals.face_recognition else None
-	if is_image(facefusion.globals.target_path):
-		target_frame = read_static_image(facefusion.globals.target_path)
-		preview_frame = process_preview_frame(request, source_face, reference_face, target_frame)
+def update_preview_image(
+	request: gradio.Request,
+	reference_frame_number: int,
+	source_image: Frame,
+	target_image: Frame | None,
+	target_video: str | None,
+	face_recognition_dropdown: FaceRecognition,
+	reference_face_position_gallery_index: int,
+	face_analyser_direction: FaceAnalyserDirection,
+	face_analyser_age: FaceAnalyserAge,
+	face_analyser_gender: FaceAnalyserGender,
+	frame_processors_checkbox_group: list[str],
+	face_swapper_model_dropdown: str,
+	face_enhancer_model_dropdown: str,
+	frame_enhancer_model_dropdown: str,
+	reference_face_distance_slider: float,
+	face_enhancer_blend_slider: int,
+	frame_enhancer_blend_slider: int,
+) -> Update:
+	# conditional_set_face_reference()
+	# source_face = get_one_face(read_static_image(facefusion.globals.source_path))
+	# reference_face = get_face_reference() if 'reference' in facefusion.globals.face_recognition else None
+	source_face = get_one_face(
+		source_image,
+		0,
+		face_analyser_direction,
+		face_analyser_age,
+		face_analyser_gender,
+	)
+	reference_face = conditional_get_face_reference(
+		face_recognition_dropdown,
+		target_image,
+		target_video,
+		reference_frame_number,
+		reference_face_position_gallery_index,
+		face_analyser_direction,
+		face_analyser_age,
+		face_analyser_gender,
+	)
+
+	if target_image is not None:
+		preview_frame = process_preview_frame(
+			request,
+			source_face,
+			reference_face,
+			target_image,
+			frame_processors_checkbox_group,
+			face_swapper_model_dropdown,
+			face_enhancer_model_dropdown,
+			frame_enhancer_model_dropdown,
+			source_image,
+			target_image,
+			target_video,
+			face_recognition_dropdown,
+			reference_face_distance_slider,
+			face_analyser_direction,
+			face_analyser_age,
+			face_analyser_gender,
+			face_enhancer_blend_slider,
+			frame_enhancer_blend_slider,
+		)
 		preview_frame = normalize_frame_color(preview_frame)
 		return gradio.update(value = preview_frame)
-	if is_video(facefusion.globals.target_path):
-		facefusion.globals.reference_frame_number = frame_number
-		temp_frame = get_video_frame(facefusion.globals.target_path, facefusion.globals.reference_frame_number)
-		preview_frame = process_preview_frame(request, source_face, reference_face, temp_frame)
+
+	if target_video is not None:
+		temp_frame = get_video_frame(target_video, reference_frame_number)
+		preview_frame = process_preview_frame(
+			request,
+			source_face,
+			reference_face,
+			temp_frame,
+			frame_processors_checkbox_group,
+			face_swapper_model_dropdown,
+			face_enhancer_model_dropdown,
+			frame_enhancer_model_dropdown,
+			source_image,
+			target_image,
+			target_video,
+			face_recognition_dropdown,
+			reference_face_distance_slider,
+			face_analyser_direction,
+			face_analyser_age,
+			face_analyser_gender,
+			face_enhancer_blend_slider,
+			frame_enhancer_blend_slider,
+		)
 		preview_frame = normalize_frame_color(preview_frame)
 		return gradio.update(value = preview_frame)
 	return gradio.update(value = None)
@@ -175,16 +397,47 @@ def update_preview_frame_slider(frame_number : int = 0) -> Update:
 
 def process_preview_frame(
 	request: gradio.Request,
-	source_face : Face,
-	reference_face : Face,
-	temp_frame : Frame
+	source_face: Face,
+	reference_face: Face,
+	temp_frame: Frame,
+	frame_processors_checkbox_group: list[str],
+	face_swapper_model_dropdown: str,
+	face_enhancer_model_dropdown: str,
+	frame_enhancer_model_dropdown: str,
+	source_image: Frame | None,
+	target_image: Frame | None,
+	target_video: str | None,
+	face_recognition_dropdown: FaceRecognition,
+	reference_face_distance_slider: float,
+	face_analyser_direction: FaceAnalyserDirection,
+	face_analyser_age: FaceAnalyserAge,
+	face_analyser_gender: FaceAnalyserGender,
+	face_enhancer_blend_slider: int,
+	frame_enhancer_blend_slider: int,
+
 ) -> Frame:
 	temp_frame = resize_frame_dimension(temp_frame, 640, 640)
 	if predict_frame(temp_frame):
 		return cv2.GaussianBlur(temp_frame, (99, 99), 0)
-	for frame_processor in facefusion.globals.frame_processors:
+
+	kwargs = {
+		"face_swapper_model": face_swapper_model_dropdown,
+		"face_enhancer_model": face_enhancer_model_dropdown,
+		"frame_enhancer_model": frame_enhancer_model_dropdown,
+		"source_image": source_image,
+		"target_image": target_image,
+		"target_video": target_video,
+		"face_recognition_dropdown": face_recognition_dropdown,
+		"reference_face_distance_slider": reference_face_distance_slider,
+		"face_analyser_direction": face_analyser_direction,
+		"face_analyser_age": face_analyser_age,
+		"face_analyser_gender": face_analyser_gender,
+		"face_enhancer_blend_slider": face_enhancer_blend_slider,
+		"frame_enhancer_blend_slider": frame_enhancer_blend_slider,
+	}
+	for frame_processor in frame_processors_checkbox_group:
 		frame_processor_module = load_frame_processor_module(frame_processor)
-		if frame_processor_module.pre_process('preview'):
+		if frame_processor_module.pre_process('preview', kwargs):
 			with monitor_call_context(
 				request,
 				"extensions.facefusion",
@@ -195,10 +448,12 @@ def process_preview_frame(
 					"n_iter": 1,
 				},
 			):
+				frame_processor_module.get_frame_processor(kwargs)
 				temp_frame = frame_processor_module.process_frame(
 					source_face,
 					reference_face,
-					temp_frame
+					temp_frame,
+					kwargs,
 				)
 	return temp_frame
 
@@ -208,3 +463,29 @@ def conditional_set_face_reference() -> None:
 		reference_frame = get_video_frame(facefusion.globals.target_path, facefusion.globals.reference_frame_number)
 		reference_face = get_one_face(reference_frame, facefusion.globals.reference_face_position)
 		set_face_reference(reference_face)
+
+def conditional_get_face_reference(
+	face_recognition_dropdown: FaceRecognition,
+	target_image: Frame | None,
+	target_video: str | None,
+	reference_frame_number: int,
+	reference_face_position_gallery_index: int,
+	face_analyser_direction: FaceAnalyserDirection,
+	face_analyser_age: FaceAnalyserAge,
+	face_analyser_gender: FaceAnalyserGender,
+) -> Face | None:
+	if face_recognition_dropdown == "many":
+		return None
+
+	if target_image is not None:
+		reference_frame = target_image
+	elif target_video is not None:
+		reference_frame = get_video_frame(target_video, reference_frame_number)
+
+	return get_one_face(
+		reference_frame,
+		reference_face_position_gallery_index,
+		face_analyser_direction,
+		face_analyser_age,
+		face_analyser_gender,
+	)

@@ -7,7 +7,7 @@ from facefusion import wording
 from facefusion.typing import TempFrameFormat
 from facefusion.utilities import is_video
 from facefusion.uis.typing import Update
-from facefusion.uis.core import get_ui_component
+from facefusion.uis.core import get_ui_component, register_ui_component
 
 TEMP_FRAME_FORMAT_DROPDOWN : Optional[gradio.Dropdown] = None
 TEMP_FRAME_QUALITY_SLIDER : Optional[gradio.Slider] = None
@@ -21,7 +21,8 @@ def render() -> None:
 		label = wording.get('temp_frame_format_dropdown_label'),
 		choices = facefusion.choices.temp_frame_formats,
 		value = facefusion.globals.temp_frame_format,
-		visible = is_video(facefusion.globals.target_path)
+		# visible = is_video(facefusion.globals.target_path)
+		visible = False,
 	)
 	TEMP_FRAME_QUALITY_SLIDER = gradio.Slider(
 		label = wording.get('temp_frame_quality_slider_label'),
@@ -29,21 +30,27 @@ def render() -> None:
 		step = 1,
 		minimum = 0,
 		maximum = 100,
-		visible = is_video(facefusion.globals.target_path)
+		# visible = is_video(facefusion.globals.target_path)
+		visible = False,
 	)
+	register_ui_component('temp_frame_format_dropdown', TEMP_FRAME_FORMAT_DROPDOWN)
+	register_ui_component('temp_frame_quality_slider', TEMP_FRAME_QUALITY_SLIDER)
 
 
 def listen() -> None:
-	TEMP_FRAME_FORMAT_DROPDOWN.select(update_temp_frame_format, inputs = TEMP_FRAME_FORMAT_DROPDOWN)
-	TEMP_FRAME_QUALITY_SLIDER.change(update_temp_frame_quality, inputs = TEMP_FRAME_QUALITY_SLIDER)
+	# TEMP_FRAME_FORMAT_DROPDOWN.select(update_temp_frame_format, inputs = TEMP_FRAME_FORMAT_DROPDOWN)
+	# TEMP_FRAME_QUALITY_SLIDER.change(update_temp_frame_quality, inputs = TEMP_FRAME_QUALITY_SLIDER)
 	target_video = get_ui_component('target_video')
 	if target_video:
 		for method in [ 'upload', 'change', 'clear' ]:
-			getattr(target_video, method)(remote_update, outputs = [ TEMP_FRAME_FORMAT_DROPDOWN, TEMP_FRAME_QUALITY_SLIDER ])
+			getattr(target_video, method)(
+				remote_update,
+				inputs = target_video,
+				outputs = [ TEMP_FRAME_FORMAT_DROPDOWN, TEMP_FRAME_QUALITY_SLIDER ])
 
 
-def remote_update() -> Tuple[Update, Update]:
-	if is_video(facefusion.globals.target_path):
+def remote_update(target_video: str) -> Tuple[Update, Update]:
+	if target_video is not None:
 		return gradio.update(visible = True), gradio.update(visible = True)
 	return gradio.update(visible = False), gradio.update(visible = False)
 

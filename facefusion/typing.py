@@ -7,7 +7,7 @@ Frame = numpy.ndarray[Any, Any]
 Matrix = numpy.ndarray[Any, Any]
 
 Update_Process = Callable[[], None]
-Process_Frames = Callable[[str, List[str], Update_Process], None]
+Process_Frames = Callable[[str, List[str], Update_Process, dict[str, Any]], None]
 
 ProcessMode = Literal[ 'output', 'preview', 'stream' ]
 FaceRecognition = Literal[ 'reference', 'many' ]

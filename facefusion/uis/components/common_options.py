@@ -4,6 +4,7 @@ import gradio
 import facefusion.globals
 from facefusion import wording
 from facefusion.uis import choices
+from facefusion.uis.core import register_ui_component
 
 COMMON_OPTIONS_CHECKBOX_GROUP : Optional[gradio.Checkboxgroup] = None
 
@@ -25,10 +26,13 @@ def render() -> None:
 		choices = choices.common_options,
 		value = value
 	)
+	register_ui_component('common_options_checkbox_group', COMMON_OPTIONS_CHECKBOX_GROUP)
+
 
 
 def listen() -> None:
-	COMMON_OPTIONS_CHECKBOX_GROUP.change(update, inputs = COMMON_OPTIONS_CHECKBOX_GROUP)
+	# COMMON_OPTIONS_CHECKBOX_GROUP.change(update, inputs = COMMON_OPTIONS_CHECKBOX_GROUP)
+	pass
 
 
 def update(common_options : List[str]) -> None:
