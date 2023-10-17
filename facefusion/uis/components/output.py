@@ -6,7 +6,7 @@ import facefusion.globals
 from facefusion import wording
 from facefusion.core import limit_resources, conditional_process
 from facefusion.uis.core import get_ui_component
-from facefusion.utilities import is_image, is_video, normalize_output_path, clear_temp
+from facefusion.utilities import is_image, is_video, normalize_output_path, clear_temp, get_output_path, create_work_dir
 from facefusion.uis.typing import Update
 from facefusion.typing import FaceRecognition, Frame, FaceAnalyserAge, FaceAnalyserDirection, FaceAnalyserGender
 from modules.system_monitor import monitor_call_context
@@ -48,7 +48,6 @@ def listen() -> None:
 	id_task = get_ui_component("id_task")
 	width = get_ui_component("width")
 	height = get_ui_component("height")
-	output_path_textbox = get_ui_component("output_path_textbox")
 	preview_frame_slider = get_ui_component("preview_frame_slider")
 	source_image = get_ui_component("source_image")
 	target_image = get_ui_component("target_image")
@@ -74,42 +73,40 @@ def listen() -> None:
 	trim_frame_end_slider = get_ui_component("trim_frame_end_slider")
 	common_options_checkbox_group = get_ui_component("common_options_checkbox_group")
 
-	if output_path_textbox:
-		OUTPUT_START_BUTTON.click(
-			start,
-			_js="submit_facefusion_task",
-			inputs = [
-				id_task,
-				width,
-				height,
-				output_path_textbox,
-				preview_frame_slider,
-				source_image,
-				target_image,
-				target_video,
-				face_recognition_dropdown,
-				reference_face_position_gallery_index,
-				face_analyser_direction_dropdown,
-				face_analyser_age_dropdown,
-				face_analyser_gender_dropdown,
-				frame_processors_checkbox_group,
-				face_swapper_model_dropdown,
-				face_enhancer_model_dropdown,
-				frame_enhancer_model_dropdown,
-				reference_face_distance_slider,
-				face_enhancer_blend_slider,
-				frame_enhancer_blend_slider,
-				output_image_quality_slider,
-				temp_frame_format_dropdown,
-				temp_frame_quality_slider,
-				output_video_encoder_dropdown,
-				output_video_quality_slider,
-				trim_frame_start_slider,
-				trim_frame_end_slider,
-				common_options_checkbox_group,
-			],
-			outputs = [ OUTPUT_IMAGE, OUTPUT_VIDEO ]
-		)
+	OUTPUT_START_BUTTON.click(
+		start,
+		_js="submit_facefusion_task",
+		inputs = [
+			id_task,
+			width,
+			height,
+			preview_frame_slider,
+			source_image,
+			target_image,
+			target_video,
+			face_recognition_dropdown,
+			reference_face_position_gallery_index,
+			face_analyser_direction_dropdown,
+			face_analyser_age_dropdown,
+			face_analyser_gender_dropdown,
+			frame_processors_checkbox_group,
+			face_swapper_model_dropdown,
+			face_enhancer_model_dropdown,
+			frame_enhancer_model_dropdown,
+			reference_face_distance_slider,
+			face_enhancer_blend_slider,
+			frame_enhancer_blend_slider,
+			output_image_quality_slider,
+			temp_frame_format_dropdown,
+			temp_frame_quality_slider,
+			output_video_encoder_dropdown,
+			output_video_quality_slider,
+			trim_frame_start_slider,
+			trim_frame_end_slider,
+			common_options_checkbox_group,
+		],
+		outputs = [ OUTPUT_IMAGE, OUTPUT_VIDEO ]
+	)
 	OUTPUT_CLEAR_BUTTON.click(clear, outputs = [ OUTPUT_IMAGE, OUTPUT_VIDEO ])
 
 
@@ -118,7 +115,6 @@ def start(
 	id_task: str,
 	width: int,
 	height: int,
-	output_path : str,
 	preview_frame_slider: int,
 	source_image: Frame | None,
 	target_image: Frame | None,
@@ -152,7 +148,13 @@ def start(
 		target_image = cv2.cvtColor(target_image, cv2.COLOR_RGB2BGR)
 
 	task_id = id_task.removeprefix("task(").removesuffix(")")
-	facefusion.globals.output_path = normalize_output_path(facefusion.globals.source_path, facefusion.globals.target_path, output_path)
+	# facefusion.globals.output_path = normalize_output_path(facefusion.globals.source_path, facefusion.globals.target_path, output_path)
+	if target_image is not None:
+		extension = ".jpg"
+	else:
+		extension = ".mp4"
+	create_work_dir(task_id)
+	output_path = str(get_output_path(task_id, extension))
 	limit_resources()
 	with monitor_call_context(
 		request,
@@ -168,8 +170,10 @@ def start(
 	):
 		conditional_process(
 			request,
+			task_id,
 			width,
 			height,
+			output_path,
 			preview_frame_slider,
 			source_image,
 			target_image,
@@ -195,10 +199,10 @@ def start(
 			trim_frame_end_slider,
 			common_options_checkbox_group,
 		)
-		if is_image(facefusion.globals.output_path):
-			return gradio.update(value = facefusion.globals.output_path, visible = True), gradio.update(value = None, visible = False)
-		if is_video(facefusion.globals.output_path):
-			return gradio.update(value = None, visible = False), gradio.update(value = facefusion.globals.output_path, visible = True)
+		if is_image(output_path):
+			return gradio.update(value = output_path, visible = True), gradio.update(value = None, visible = False)
+		if is_video(output_path):
+			return gradio.update(value = None, visible = False), gradio.update(value = output_path, visible = True)
 		return gradio.update(), gradio.update()
 
 

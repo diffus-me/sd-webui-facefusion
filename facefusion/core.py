@@ -1,5 +1,8 @@
 import os
 from typing import Any
+from pathlib import Path
+
+from facefusion.vision import write_image
 
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -20,6 +23,7 @@ from facefusion import metadata, wording
 from facefusion.predictor import predict_frame, predict_image, predict_video
 from facefusion.processors.frame.core import get_frame_processors_modules, load_frame_processor_module
 from facefusion.utilities import is_image, is_video, detect_fps, compress_image, merge_video, extract_frames, get_temp_frame_paths, restore_audio, create_temp, move_temp, clear_temp, list_module_names, encode_execution_providers, decode_execution_providers, normalize_output_path
+from facefusion.utilities import TEMP_DIRECTORY_PATH, create_temp_dir, get_temp_video_frame_paths, rename_temp_video_to_output, clear_temp_dir
 from facefusion.typing import FaceRecognition, Frame, FaceAnalyserAge, FaceAnalyserDirection, FaceAnalyserGender
 from modules.system_monitor import monitor_call_context
 
@@ -91,7 +95,10 @@ def apply_args(program : ArgumentParser) -> None:
 	# general
 	facefusion.globals.source_path = args.source_path
 	facefusion.globals.target_path = args.target_path
-	facefusion.globals.output_path = normalize_output_path(facefusion.globals.source_path, facefusion.globals.target_path, args.output_path)
+	# facefusion.globals.output_path = normalize_output_path(facefusion.globals.source_path, facefusion.globals.target_path, args.output_path)
+	_tmp_dir = Path(TEMP_DIRECTORY_PATH)
+	_tmp_dir.mkdir(parents=True, exist_ok=True)
+	facefusion.globals.output_path = str(_tmp_dir)
 	# misc
 	facefusion.globals.skip_download = args.skip_download
 	facefusion.globals.headless = args.headless
@@ -189,8 +196,10 @@ def pre_check() -> bool:
 
 def conditional_process(
 	request: gradio.Request | None,
+	task_id: str,
 	width: int,
 	height: int,
+	output_path: str,
 	preview_frame_slider: int,
 	source_image: Frame,
 	target_image: Frame | None,
@@ -241,6 +250,7 @@ def conditional_process(
 			request,
 			width,
 			height,
+			output_path,
 			frame_processors_checkbox_group,
 			output_image_quality_slider,
 			kwargs,
@@ -248,8 +258,10 @@ def conditional_process(
 	elif target_video is not None:
 		process_video(
 			request,
+			task_id,
 			width,
 			height,
+			output_path,
 			frame_processors_checkbox_group,
 			common_options_checkbox_group,
 			temp_frame_format_dropdown,
@@ -265,6 +277,7 @@ def process_image(
 	request: gradio.Request | None,
 	width: int,
 	height: int,
+	output_path: str,
 	frame_processors_checkbox_group: list[str],
 	output_image_quality_slider: int,
 	kwargs: dict[str, Any],
@@ -291,12 +304,14 @@ def process_image(
 			frame_processor_module.get_frame_processor(kwargs)
 			frame = frame_processor_module.process_image_frame(frame, kwargs)
 		frame_processor_module.post_process()
+
+	write_image(output_path, frame)
 	# compress image
 	update_status(wording.get('compressing_image'))
-	if not compress_image(facefusion.globals.output_path, output_image_quality_slider):
+	if not compress_image(output_path, output_image_quality_slider):
 		update_status(wording.get('compressing_image_failed'))
 	# validate image
-	if is_image(facefusion.globals.target_path):
+	if is_image(output_path):
 		update_status(wording.get('processing_image_succeed'))
 	else:
 		update_status(wording.get('processing_image_failed'))
@@ -304,8 +319,10 @@ def process_image(
 
 def process_video(
 	request: gradio.Request | None,
+	task_id: str,
 	width: int,
 	height: int,
+	output_path: str,
 	frame_processors_checkbox_group: list[str],
 	common_options_checkbox_group: list[str],
 	temp_frame_format_dropdown: str,
@@ -322,10 +339,11 @@ def process_video(
 	fps = detect_fps(target_video) if "keep_fps" in common_options_checkbox_group else 25.0
 	# create temp
 	update_status(wording.get('creating_temp'))
-	create_temp(target_video)
+	create_temp_dir(task_id)
 	# extract frames
 	update_status(wording.get('extracting_frames_fps').format(fps = fps))
 	extract_frames(
+		task_id,
 		target_video,
 		fps,
 		temp_frame_format_dropdown,
@@ -334,7 +352,7 @@ def process_video(
 		trim_frame_end_slider,
 	)
 	# process frame
-	temp_frame_paths = get_temp_frame_paths(target_video, temp_frame_format_dropdown)
+	temp_frame_paths = get_temp_video_frame_paths(task_id, temp_frame_format_dropdown)
 	if temp_frame_paths:
 		for frame_processor_module in get_frame_processors_modules(frame_processors_checkbox_group):
 			update_status(wording.get('processing'), frame_processor_module.NAME)
@@ -357,7 +375,7 @@ def process_video(
 	# merge video
 	update_status(wording.get('merging_video_fps').format(fps = fps))
 	if not merge_video(
-		target_video,
+		task_id,
 		fps,
 		temp_frame_format_dropdown,
 		output_video_encoder_dropdown,
@@ -368,22 +386,29 @@ def process_video(
 	# handle audio
 	if "skip_audio" in common_options_checkbox_group:
 		update_status(wording.get('skipping_audio'))
-		move_temp(facefusion.globals.target_path, facefusion.globals.output_path)
+		# move_temp(facefusion.globals.target_path, facefusion.globals.output_path)
+		rename_temp_video_to_output(task_id, output_path)
 	else:
 		update_status(wording.get('restoring_audio'))
 		if not restore_audio(
-			facefusion.globals.target_path,
-			facefusion.globals.output_path,
+			task_id,
+			fps,
+			target_video,
+			output_path,
 			trim_frame_start_slider,
 			trim_frame_end_slider,
 		):
 			update_status(wording.get('restoring_audio_failed'))
-			move_temp(facefusion.globals.target_path, facefusion.globals.output_path)
+			# move_temp(facefusion.globals.target_path, facefusion.globals.output_path)
+			rename_temp_video_to_output(task_id, output_path)
 	# clear temp
 	update_status(wording.get('clearing_temp'))
-	clear_temp(facefusion.globals.target_path)
+	# clear_temp(facefusion.globals.target_path)
+	clear_temp_dir(task_id)
+
 	# validate video
-	if is_video(facefusion.globals.target_path):
+	# if is_video(facefusion.globals.target_path):
+	if is_video(output_path):
 		update_status(wording.get('processing_video_succeed'))
 	else:
 		update_status(wording.get('processing_video_failed'))

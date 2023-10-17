@@ -29,7 +29,8 @@ def run_ffmpeg(args : List[str]) -> bool:
 	commands = [ 'ffmpeg', '-hide_banner', '-loglevel', 'error' ]
 	commands.extend(args)
 	try:
-		subprocess.run(commands, stderr = subprocess.PIPE, check = True)
+		# subprocess.run(commands, stderr = subprocess.PIPE, check = True)
+		subprocess.run(commands, capture_output=True, check = True)
 		return True
 	except subprocess.CalledProcessError:
 		return False
@@ -42,6 +43,7 @@ def open_ffmpeg(args : List[str]) -> subprocess.Popen[bytes]:
 
 
 def extract_frames(
+	task_id: str,
 	target_path: str,
 	fps: float,
 	temp_frame_format_dropdown: str,
@@ -52,7 +54,8 @@ def extract_frames(
 	temp_frame_compression = round(31 - (temp_frame_quality_slider * 0.31))
 	trim_frame_start = trim_frame_start_slider
 	trim_frame_end = trim_frame_end_slider
-	temp_frames_pattern = get_temp_frames_pattern(target_path, '%04d', temp_frame_format_dropdown)
+	# temp_frames_pattern = get_temp_frames_pattern(target_path, '%04d', temp_frame_format_dropdown)
+	temp_frames_pattern = get_temp_video_frame_pattern(task_id, "%04d", temp_frame_format_dropdown)
 	commands = [ '-hwaccel', 'auto', '-i', target_path, '-q:v', str(temp_frame_compression), '-pix_fmt', 'rgb24' ]
 	if trim_frame_start is not None and trim_frame_end is not None:
 		commands.extend([ '-vf', 'trim=start_frame=' + str(trim_frame_start) + ':end_frame=' + str(trim_frame_end) + ',fps=' + str(fps) ])
@@ -73,14 +76,16 @@ def compress_image(output_path : str, output_image_quality: int) -> bool:
 
 
 def merge_video(
-	target_path: str,
+	task_id: str,
 	fps: float,
 	temp_frame_format_dropdown: str,
 	output_video_encoder_dropdown: str,
 	output_video_quality_slider: int,
 ) -> bool:
-	temp_output_video_path = get_temp_output_video_path(target_path)
-	temp_frames_pattern = get_temp_frames_pattern(target_path, '%04d',  temp_frame_format_dropdown)
+	# temp_output_video_path = get_temp_output_video_path(target_path)
+	# temp_frames_pattern = get_temp_frames_pattern(target_path, '%04d',  temp_frame_format_dropdown)
+	temp_output_video_path = str(get_temp_video_path(task_id))
+	temp_frames_pattern = get_temp_video_frame_pattern(task_id, "%04d",  temp_frame_format_dropdown)
 	commands = [ '-hwaccel', 'auto', '-r', str(fps), '-i', temp_frames_pattern, '-c:v', output_video_encoder_dropdown ]
 	if output_video_encoder_dropdown in [ 'libx264', 'libx265' ]:
 		output_video_compression = round(51 - (output_video_quality_slider * 0.51))
@@ -96,15 +101,18 @@ def merge_video(
 
 
 def restore_audio(
+	task_id: str,
+	fps: float,
 	target_path: str,
 	output_path: str,
 	trim_frame_start_slider: int,
 	trim_frame_end_slider: int,
 ) -> bool:
-	fps = detect_fps(target_path)
+	# fps = detect_fps(target_path)
 	trim_frame_start = trim_frame_start_slider
 	trim_frame_end = trim_frame_end_slider
-	temp_output_video_path = get_temp_output_video_path(target_path)
+	# temp_output_video_path = get_temp_output_video_path(target_path)
+	temp_output_video_path = str(get_temp_video_path(task_id))
 	commands = [ '-hwaccel', 'auto', '-i', temp_output_video_path ]
 	if trim_frame_start is not None:
 		start_time = trim_frame_start / fps
@@ -171,6 +179,47 @@ def clear_temp(target_path : str) -> None:
 		shutil.rmtree(temp_directory_path)
 	if os.path.exists(parent_directory_path) and not os.listdir(parent_directory_path):
 		os.rmdir(parent_directory_path)
+
+
+def get_work_dir(task_id: str) -> Path:
+	return Path(TEMP_DIRECTORY_PATH) / task_id
+
+def create_work_dir(task_id: str) -> None:
+	work_dir = get_work_dir(task_id)
+	work_dir.mkdir(parents=True, exist_ok=True)
+
+
+def get_output_path(task_id: str, extension: str) -> Path:
+	return (get_work_dir(task_id) / "output").with_suffix(extension)
+
+def get_temp_dir(task_id: str) -> Path:
+	return get_work_dir(task_id) / "temp"
+
+def create_temp_dir(task_id: str) -> None:
+	temp_dir = get_temp_dir(task_id)
+	temp_dir.mkdir(parents=True, exist_ok=True)
+
+def get_temp_video_path(task_id: str) -> Path:
+	work_dir = get_work_dir(task_id)
+	return work_dir / TEMP_OUTPUT_VIDEO_NAME
+
+def get_temp_video_frame_pattern(task_id: str, stem: str, temp_frame_format_dropdown: str) -> str:
+	temp_dir = get_temp_dir(task_id)
+	return str((temp_dir / stem).with_suffix(f".{temp_frame_format_dropdown}"))
+
+def get_temp_video_frame_paths(task_id: str, temp_frame_format_dropdown: str) -> list[str]:
+	pattern = get_temp_video_frame_pattern(task_id, "*", temp_frame_format_dropdown)
+	return sorted(glob.glob(pattern))
+
+def rename_temp_video_to_output(task_id: str, output_path: str) -> None:
+	temp_video_path = get_temp_video_path(task_id)
+	temp_video_path.rename(output_path)
+
+def clear_temp_dir(task_id: str) -> None:
+	temp_dir = get_temp_dir(task_id)
+	shutil.rmtree(temp_dir)
+
+
 
 
 def is_file(file_path : str) -> bool:
