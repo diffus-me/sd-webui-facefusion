@@ -435,19 +435,19 @@ def process_preview_frame(
 		"face_enhancer_blend_slider": face_enhancer_blend_slider,
 		"frame_enhancer_blend_slider": frame_enhancer_blend_slider,
 	}
-	for frame_processor in frame_processors_checkbox_group:
-		frame_processor_module = load_frame_processor_module(frame_processor)
-		if frame_processor_module.pre_process('preview', kwargs):
-			with monitor_call_context(
-				request,
-				"extensions.facefusion",
-				"extensions.facefusion",
-				decoded_params={
-					"width": 640,
-					"height": 640,
-					"n_iter": 1,
-				},
-			):
+	with monitor_call_context(
+		request,
+		"extensions.facefusion",
+		"extensions.facefusion",
+		decoded_params={
+			"width": 640,
+			"height": 640,
+			"n_iter": len(frame_processors_checkbox_group),
+		},
+	):
+		for frame_processor in frame_processors_checkbox_group:
+			frame_processor_module = load_frame_processor_module(frame_processor)
+			if frame_processor_module.pre_process('preview', kwargs):
 				frame_processor_module.get_frame_processor(kwargs)
 				temp_frame = frame_processor_module.process_frame(
 					source_face,

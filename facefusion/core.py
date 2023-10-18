@@ -355,21 +355,21 @@ def process_video(
 	# process frame
 	temp_frame_paths = get_temp_video_frame_paths(task_id, temp_frame_format_dropdown)
 	if temp_frame_paths:
-		for frame_processor_module in get_frame_processors_modules(frame_processors_checkbox_group):
-			update_status(wording.get('processing'), frame_processor_module.NAME)
-			with monitor_call_context(
-				request,
-				"extensions.facefusion",
-				"extensions.facefusion",
-				decoded_params={
-					"width": width,
-					"height": height,
-					"n_iter": len(temp_frame_paths),
-				},
-			):
+		with monitor_call_context(
+			request,
+			"extensions.facefusion",
+			"extensions.facefusion",
+			decoded_params={
+				"width": width,
+				"height": height,
+				"n_iter": len(temp_frame_paths) * len(frame_processors_checkbox_group),
+			},
+		):
+			for frame_processor_module in get_frame_processors_modules(frame_processors_checkbox_group):
+				update_status(wording.get('processing'), frame_processor_module.NAME)
 				frame_processor_module.get_frame_processor(kwargs)
 				frame_processor_module.process_video_frame(temp_frame_paths, kwargs)
-			frame_processor_module.post_process()
+				frame_processor_module.post_process()
 	else:
 		update_status(wording.get('temp_frames_not_found'))
 		return
