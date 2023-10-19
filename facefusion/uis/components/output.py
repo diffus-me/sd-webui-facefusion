@@ -40,7 +40,8 @@ def render() -> None:
 	)
 	OUTPUT_CLEAR_BUTTON = gradio.Button(
 		value = wording.get('clear_button_label'),
-		size = 'sm'
+		size = 'sm',
+		visible = False,
 	)
 
 
