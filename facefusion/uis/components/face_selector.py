@@ -77,7 +77,7 @@ def listen() -> None:
 
 	multi_component_names : List[ComponentName] =\
 	[
-		'source_image',
+		# 'source_image',
 		'target_image',
 		'target_video'
 	]
