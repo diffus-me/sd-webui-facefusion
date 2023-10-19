@@ -1,6 +1,9 @@
 from typing import Any, Dict, List, Optional
+from uuid import uuid4
+
 import cv2
 import gradio
+from starlette.datastructures import MutableHeaders
 
 import facefusion.globals
 from facefusion import wording
@@ -60,7 +63,6 @@ def render() -> None:
 
 
 def listen() -> None:
-	id_task = get_ui_component("id_task")
 	source_image = get_ui_component("source_image")
 	target_image = get_ui_component("target_image")
 	target_video = get_ui_component("target_video")
@@ -85,9 +87,7 @@ def listen() -> None:
 
 	PREVIEW_FRAME_SLIDER.change(
 		update_preview_image_wrapper,
-		_js="submit_facefusion_task",
 		inputs = [
-			id_task,
 			source_image,
 			target_image,
 			target_video,
@@ -119,9 +119,7 @@ def listen() -> None:
 			for method in [ 'upload', 'change', 'clear' ]:
 				getattr(component, method)(
 					update_preview_image_wrapper,
-					_js="submit_facefusion_task",
 					inputs = [
-						id_task,
 						source_image,
 						target_image,
 						target_video,
@@ -155,9 +153,7 @@ def listen() -> None:
 		if component:
 			component.change(
 				update_preview_image_wrapper,
-				_js="submit_facefusion_task",
 				inputs = [
-					id_task,
 					source_image,
 					target_image,
 					target_video,
@@ -188,9 +184,7 @@ def listen() -> None:
 		if component:
 			component.select(
 				update_preview_image_wrapper,
-				_js="submit_facefusion_task",
 				inputs = [
-					id_task,
 					source_image,
 					target_image,
 					target_video,
@@ -221,9 +215,7 @@ def listen() -> None:
 		if component:
 			component.change(
 				update_preview_image_wrapper,
-				_js="submit_facefusion_task",
 				inputs = [
-					id_task,
 					source_image,
 					target_image,
 					target_video,
@@ -246,7 +238,6 @@ def listen() -> None:
 
 def update_preview_image_wrapper(
 	request: gradio.Request,
-	id_task: str,
 	source_image: Frame | None,
 	target_image: Frame | None,
 	target_video: str | None,
@@ -264,9 +255,6 @@ def update_preview_image_wrapper(
 	face_enhancer_blend_slider: int,
 	frame_enhancer_blend_slider: int,
 ) -> Update:
-	if not id_task:
-		return
-
 	if source_image is None or (target_image is None and target_video is None):
 		return
 
@@ -274,11 +262,14 @@ def update_preview_image_wrapper(
 	if target_image is not None:
 		target_image = cv2.cvtColor(target_image, cv2.COLOR_RGB2BGR)
 
+	task_id = str(uuid4())
+	MutableHeaders.__setitem__(request.headers, "x-task-id", task_id)
+
 	with monitor_call_context(
 		request,
 		"extensions.facefusion",
 		"extensions.facefusion",
-		id_task.removeprefix("task(").removesuffix(")"),
+		task_id,
 		decoded_params={
 			"width": 640,
 			"height": 640,
