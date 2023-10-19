@@ -11,7 +11,7 @@ from facefusion.face_analyser import get_one_face, get_many_faces, find_similar_
 from facefusion.face_reference import get_face_reference, set_face_reference
 from facefusion.typing import Face, FaceAnalyserAge, FaceAnalyserDirection, FaceAnalyserGender, FaceRecognition, Frame, Update_Process, ProcessMode, ModelValue, OptionsWithModel
 from facefusion.utilities import conditional_download, resolve_relative_path, is_image, is_video, is_file, is_download_done
-from facefusion.vision import read_image, read_static_image, write_image
+from facefusion.vision import read_image, read_static_image, write_image, get_video_frame
 from facefusion.processors.frame import globals as frame_processors_globals
 from facefusion.processors.frame import choices as frame_processors_choices
 
@@ -211,7 +211,7 @@ def process_video(source_path : str, temp_frame_paths : List[str]) -> None:
 
 def process_video_frame(temp_frame_paths: List[str], kwargs: dict[str, Any]) -> None:
 	if kwargs["face_recognition_dropdown"] == "reference":
-		reference_frame = read_static_image(temp_frame_paths[kwargs["preview_frame_slider"]])
+		reference_frame = get_video_frame(kwargs["target_video"], kwargs["preview_frame_slider"])
 		reference_face = get_one_face(
 			reference_frame,
 			kwargs["reference_face_position_gallery_index"],
