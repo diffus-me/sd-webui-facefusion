@@ -18,6 +18,9 @@ from modules.system_monitor import monitor_call_context
 PREVIEW_IMAGE : Optional[gradio.Image] = None
 PREVIEW_FRAME_SLIDER : Optional[gradio.Slider] = None
 
+def _get_consume_text(consume: int) -> str:
+	text = f"{consume} credit" if consume == 1 else f"{consume} credits"
+	return f"{wording.get('preview_image_label')} -- Each preview image costs {text}"
 
 def render() -> None:
 	global PREVIEW_IMAGE
@@ -25,7 +28,7 @@ def render() -> None:
 
 	preview_image_args: Dict[str, Any] =\
 	{
-		'label': wording.get('preview_image_label'),
+		'label': _get_consume_text(1),
 		'interactive': False
 	}
 	preview_frame_slider_args: Dict[str, Any] =\
@@ -73,6 +76,12 @@ def listen() -> None:
 	reference_face_distance_slider = get_ui_component("reference_face_distance_slider")
 	face_enhancer_blend_slider = get_ui_component("face_enhancer_blend_slider")
 	frame_enhancer_blend_slider = get_ui_component("frame_enhancer_blend_slider")
+
+	frame_processors_checkbox_group.change(
+		lambda processors: gradio.update(label=_get_consume_text(len(processors))),
+		inputs=frame_processors_checkbox_group,
+		outputs=PREVIEW_IMAGE,
+	)
 
 	PREVIEW_FRAME_SLIDER.change(
 		update_preview_image_wrapper,
