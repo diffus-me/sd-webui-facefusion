@@ -16,29 +16,32 @@ def render() -> None:
 	global SOURCE_IMAGE
 
 	# is_source_image = is_image(facefusion.globals.source_path)
-	is_source_image = False
-	SOURCE_FILE = gradio.File(
-		file_count = 'single',
-		file_types =
-		[
-			'.png',
-			'.jpg',
-			'.webp'
-		],
-		label = wording.get('source_file_label'),
-		value = facefusion.globals.source_path if is_source_image else None
-	)
+	# SOURCE_FILE = gradio.File(
+	# 	file_count = 'single',
+	# 	file_types =
+	# 	[
+	# 		'.png',
+	# 		'.jpg',
+	# 		'.webp'
+	# 	],
+	# 	label = wording.get('source_file_label'),
+	# 	value = facefusion.globals.source_path if is_source_image else None
+	# )
+	# SOURCE_IMAGE = gradio.Image(
+	# 	value = SOURCE_FILE.value['name'] if is_source_image else None,
+	# 	interactive = False,
+	# 	visible = is_source_image,
+	# 	show_label = False
+	# )
 	SOURCE_IMAGE = gradio.Image(
-		value = SOURCE_FILE.value['name'] if is_source_image else None,
-		interactive = False,
-		visible = is_source_image,
-		show_label = False
+		label = wording.get('source_file_label'),
 	)
 	register_ui_component('source_image', SOURCE_IMAGE)
 
 
 def listen() -> None:
-	SOURCE_FILE.change(update, inputs = SOURCE_FILE, outputs = SOURCE_IMAGE)
+	# SOURCE_FILE.change(update, inputs = SOURCE_FILE, outputs = SOURCE_IMAGE)
+	pass
 
 
 def update(file: IO[Any]) -> Update:
