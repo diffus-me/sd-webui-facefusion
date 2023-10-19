@@ -79,12 +79,12 @@ def listen() -> None:
 		_js="submit_facefusion_task",
 		inputs = [
 			id_task,
-			width,
-			height,
-			preview_frame_slider,
 			source_image,
 			target_image,
 			target_video,
+			width,
+			height,
+			preview_frame_slider,
 			face_recognition_dropdown,
 			reference_face_position_gallery_index,
 			face_analyser_direction_dropdown,
@@ -114,12 +114,12 @@ def listen() -> None:
 def start(
 	request: gradio.Request,
 	id_task: str,
-	width: int,
-	height: int,
-	preview_frame_slider: int,
 	source_image: Frame | None,
 	target_image: Frame | None,
 	target_video: str | None,
+	width: int,
+	height: int,
+	preview_frame_slider: int,
 	face_recognition_dropdown: FaceRecognition,
 	reference_face_position_gallery_index: int,
 	face_analyser_direction: FaceAnalyserDirection,
@@ -141,6 +141,9 @@ def start(
 	trim_frame_end_slider: int,
 	common_options_checkbox_group: list[str],
 ) -> Tuple[Update, Update]:
+	if not id_task:
+		return
+
 	if source_image is None or (target_image is None and target_video is None):
 		return
 

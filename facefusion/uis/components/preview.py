@@ -88,10 +88,10 @@ def listen() -> None:
 		_js="submit_facefusion_task",
 		inputs = [
 			id_task,
-			PREVIEW_FRAME_SLIDER,
 			source_image,
 			target_image,
 			target_video,
+			PREVIEW_FRAME_SLIDER,
 			face_recognition_dropdown,
 			reference_face_position_gallery_index,
 			face_analyser_direction_dropdown,
@@ -122,10 +122,10 @@ def listen() -> None:
 					_js="submit_facefusion_task",
 					inputs = [
 						id_task,
-						PREVIEW_FRAME_SLIDER,
 						source_image,
 						target_image,
 						target_video,
+						PREVIEW_FRAME_SLIDER,
 						face_recognition_dropdown,
 						reference_face_position_gallery_index,
 						face_analyser_direction_dropdown,
@@ -158,10 +158,10 @@ def listen() -> None:
 				_js="submit_facefusion_task",
 				inputs = [
 					id_task,
-					PREVIEW_FRAME_SLIDER,
 					source_image,
 					target_image,
 					target_video,
+					PREVIEW_FRAME_SLIDER,
 					face_recognition_dropdown,
 					reference_face_position_gallery_index,
 					face_analyser_direction_dropdown,
@@ -191,10 +191,10 @@ def listen() -> None:
 				_js="submit_facefusion_task",
 				inputs = [
 					id_task,
-					PREVIEW_FRAME_SLIDER,
 					source_image,
 					target_image,
 					target_video,
+					PREVIEW_FRAME_SLIDER,
 					face_recognition_dropdown,
 					reference_face_position_gallery_index,
 					face_analyser_direction_dropdown,
@@ -224,10 +224,10 @@ def listen() -> None:
 				_js="submit_facefusion_task",
 				inputs = [
 					id_task,
-					PREVIEW_FRAME_SLIDER,
 					source_image,
 					target_image,
 					target_video,
+					PREVIEW_FRAME_SLIDER,
 					face_recognition_dropdown,
 					reference_face_position_gallery_index,
 					face_analyser_direction_dropdown,
@@ -247,10 +247,10 @@ def listen() -> None:
 def update_preview_image_wrapper(
 	request: gradio.Request,
 	id_task: str,
-	reference_frame_number: int,
 	source_image: Frame | None,
 	target_image: Frame | None,
 	target_video: str | None,
+	reference_frame_number: int,
 	face_recognition_dropdown: FaceRecognition,
 	reference_face_position_gallery_index: int,
 	face_analyser_direction: FaceAnalyserDirection,
@@ -264,6 +264,9 @@ def update_preview_image_wrapper(
 	face_enhancer_blend_slider: int,
 	frame_enhancer_blend_slider: int,
 ) -> Update:
+	if not id_task:
+		return
+
 	if source_image is None or (target_image is None and target_video is None):
 		return
 
@@ -286,10 +289,10 @@ def update_preview_image_wrapper(
 	):
 		return update_preview_image(
 			request,
-			reference_frame_number,
 			source_image,
 			target_image,
 			target_video,
+			reference_frame_number,
 			face_recognition_dropdown,
 			reference_face_position_gallery_index,
 			face_analyser_direction,
@@ -306,10 +309,10 @@ def update_preview_image_wrapper(
 
 def update_preview_image(
 	request: gradio.Request,
-	reference_frame_number: int,
 	source_image: Frame,
 	target_image: Frame | None,
 	target_video: str | None,
+	reference_frame_number: int,
 	face_recognition_dropdown: FaceRecognition,
 	reference_face_position_gallery_index: int,
 	face_analyser_direction: FaceAnalyserDirection,
