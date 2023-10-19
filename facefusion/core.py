@@ -287,7 +287,7 @@ def process_image(
 	# 	return
 	frame = kwargs["target_image"]
 	if predict_frame(frame):
-		return
+		raise gradio.Error("The input image is NSFW, it is not supported now")
 	# shutil.copy2(facefusion.globals.target_path, facefusion.globals.output_path)
 	# process frame
 	for frame_processor_module in get_frame_processors_modules(frame_processors_checkbox_group):
@@ -337,7 +337,7 @@ def process_video(
 ) -> None:
 	target_video = kwargs["target_video"]
 	if predict_video(target_video):
-		return
+		raise gradio.Error("The input video is NSFW, it is not supported now")
 	fps = detect_fps(target_video) if "keep_fps" in common_options_checkbox_group else 25.0
 	# create temp
 	update_status(wording.get('creating_temp'))

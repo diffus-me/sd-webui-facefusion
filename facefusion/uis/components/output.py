@@ -15,6 +15,7 @@ OUTPUT_IMAGE : Optional[gradio.Image] = None
 OUTPUT_VIDEO : Optional[gradio.Video] = None
 OUTPUT_START_BUTTON : Optional[gradio.Button] = None
 OUTPUT_CLEAR_BUTTON : Optional[gradio.Button] = None
+OUTPUT_INFO : Optional[gradio.Markdown] = None
 
 
 def render() -> None:
@@ -22,6 +23,7 @@ def render() -> None:
 	global OUTPUT_VIDEO
 	global OUTPUT_START_BUTTON
 	global OUTPUT_CLEAR_BUTTON
+	global OUTPUT_INFO
 
 	OUTPUT_IMAGE = gradio.Image(
 		label = wording.get('output_image_or_video_label'),
@@ -32,6 +34,7 @@ def render() -> None:
 		label = wording.get('output_image_or_video_label'),
 		interactive = False,
 	)
+	OUTPUT_INFO = gradio.Markdown(visible=False)
 	OUTPUT_START_BUTTON = gradio.Button(
 		value = wording.get('start_button_label'),
 		elem_id = "facefusion_start_button",
@@ -106,7 +109,7 @@ def listen() -> None:
 			trim_frame_end_slider,
 			common_options_checkbox_group,
 		],
-		outputs = [ OUTPUT_IMAGE, OUTPUT_VIDEO ]
+		outputs = [ OUTPUT_IMAGE, OUTPUT_VIDEO, OUTPUT_INFO ]
 	)
 	OUTPUT_CLEAR_BUTTON.click(clear, outputs = [ OUTPUT_IMAGE, OUTPUT_VIDEO ])
 
@@ -140,12 +143,12 @@ def start(
 	trim_frame_start_slider: int,
 	trim_frame_end_slider: int,
 	common_options_checkbox_group: list[str],
-) -> Tuple[Update, Update]:
+) -> Tuple[Update, Update, Update]:
 	if not id_task:
-		return
+		return gradio.update(), gradio.update(), gradio.update(visible = True)
 
 	if source_image is None or (target_image is None and target_video is None):
-		return
+		return gradio.update(), gradio.update(), gradio.update(visible = True)
 
 	source_image = cv2.cvtColor(source_image, cv2.COLOR_RGB2BGR)
 	if target_image is not None:
@@ -173,42 +176,46 @@ def start(
 		is_intermediate=False,
 		only_available_for=["plus", "pro", "api"],
 	):
-		conditional_process(
-			request,
-			task_id,
-			width,
-			height,
-			output_path,
-			preview_frame_slider,
-			source_image,
-			target_image,
-			target_video,
-			face_recognition_dropdown,
-			reference_face_position_gallery_index,
-			face_analyser_direction,
-			face_analyser_age,
-			face_analyser_gender,
-			frame_processors_checkbox_group,
-			face_swapper_model_dropdown,
-			face_enhancer_model_dropdown,
-			frame_enhancer_model_dropdown,
-			reference_face_distance_slider,
-			face_enhancer_blend_slider,
-			frame_enhancer_blend_slider,
-			output_image_quality_slider,
-			temp_frame_format_dropdown,
-			temp_frame_quality_slider,
-			output_video_encoder_dropdown,
-			output_video_quality_slider,
-			trim_frame_start_slider,
-			trim_frame_end_slider,
-			common_options_checkbox_group,
-		)
+		try:
+			conditional_process(
+				request,
+				task_id,
+				width,
+				height,
+				output_path,
+				preview_frame_slider,
+				source_image,
+				target_image,
+				target_video,
+				face_recognition_dropdown,
+				reference_face_position_gallery_index,
+				face_analyser_direction,
+				face_analyser_age,
+				face_analyser_gender,
+				frame_processors_checkbox_group,
+				face_swapper_model_dropdown,
+				face_enhancer_model_dropdown,
+				frame_enhancer_model_dropdown,
+				reference_face_distance_slider,
+				face_enhancer_blend_slider,
+				frame_enhancer_blend_slider,
+				output_image_quality_slider,
+				temp_frame_format_dropdown,
+				temp_frame_quality_slider,
+				output_video_encoder_dropdown,
+				output_video_quality_slider,
+				trim_frame_start_slider,
+				trim_frame_end_slider,
+				common_options_checkbox_group,
+			)
+		except gradio.Error as error:
+			return gradio.update(), gradio.update(), gradio.update(visible=True, value = error.message)
+
 		if is_image(output_path):
-			return gradio.update(value = output_path, visible = True), gradio.update(value = None, visible = False)
+			return gradio.update(value = output_path, visible = True), gradio.update(value = None, visible = False), gradio.update(visible = False)
 		if is_video(output_path):
-			return gradio.update(value = None, visible = False), gradio.update(value = output_path, visible = True)
-		return gradio.update(), gradio.update()
+			return gradio.update(value = None, visible = False), gradio.update(value = output_path, visible = True), gradio.update(visible = False)
+		return gradio.update(), gradio.update(), gradio.update(visible = True)
 
 
 def clear() -> Tuple[Update, Update]:
