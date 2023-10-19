@@ -167,6 +167,7 @@ def start(
 			"n_iter": 1,
 		},
 		is_intermediate=False,
+		only_available_for=["plus", "pro", "api"],
 	):
 		conditional_process(
 			request,

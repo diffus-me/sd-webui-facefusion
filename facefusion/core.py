@@ -301,6 +301,7 @@ def process_image(
 				"height": height,
 				"n_iter": 1,
 			},
+			only_available_for=["plus", "pro", "api"],
 		):
 			frame_processor_module.get_frame_processor(kwargs)
 			frame = frame_processor_module.process_image_frame(frame, kwargs)
@@ -364,6 +365,7 @@ def process_video(
 				"height": height,
 				"n_iter": len(temp_frame_paths) * len(frame_processors_checkbox_group),
 			},
+			only_available_for=["plus", "pro", "api"],
 		):
 			for frame_processor_module in get_frame_processors_modules(frame_processors_checkbox_group):
 				update_status(wording.get('processing'), frame_processor_module.NAME)
