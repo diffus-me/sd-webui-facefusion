@@ -40,11 +40,11 @@ def listen() -> None:
             _update_image_resolution, inputs=[target_image], outputs=[WIDTH, HEIGHT]
         )
 
-    resolution_upater = (
-        f"monitorThisParam('facefusion_interface', 'extensions.facefusion', 'width')",
-    )
-    WIDTH.change(None, inputs=[], outputs=[WIDTH], _js=resolution_upater)
-    HEIGHT.change(None, inputs=[], outputs=[HEIGHT], _js=resolution_upater)
+    def resolution_updater(param_name: str) -> str:
+        return f"monitorThisParam('facefusion_interface', 'extensions.facefusion', '{param_name}')",
+
+    WIDTH.change(None, inputs=[], outputs=[WIDTH], _js=resolution_updater("width"))
+    HEIGHT.change(None, inputs=[], outputs=[HEIGHT], _js=resolution_updater("height"))
 
     n_iter_updater = (
         f"monitorThisParam('facefusion_interface', 'extensions.facefusion', 'n_iter', extractor = (x) => Math.max((x[1] - x[0]), 1) * x[2].length)",
