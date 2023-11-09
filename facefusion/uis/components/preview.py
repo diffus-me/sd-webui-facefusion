@@ -138,7 +138,12 @@ def listen() -> None:
 						frame_enhancer_blend_slider,
 					],
 					outputs = PREVIEW_IMAGE)
-				getattr(component, method)(update_preview_frame_slider, inputs = PREVIEW_FRAME_SLIDER, outputs = PREVIEW_FRAME_SLIDER)
+				if component_name == "source_image":
+					continue
+				getattr(component, method)(
+					update_preview_frame_slider,
+					inputs = [target_image, target_video],
+					outputs = PREVIEW_FRAME_SLIDER)
 	update_component_names : List[ComponentName] =\
 	[
 		'face_recognition_dropdown',
@@ -389,14 +394,14 @@ def update_preview_image(
 	return gradio.update(value = None)
 
 
-def update_preview_frame_slider(frame_number : int = 0) -> Update:
-	if is_image(facefusion.globals.target_path):
+def update_preview_frame_slider(target_image: Frame | None, target_video: str | None) -> Update:
+	if target_image is not None:
 		return gradio.update(value = None, maximum = None, visible = False)
-	if is_video(facefusion.globals.target_path):
-		facefusion.globals.reference_frame_number = frame_number
-		video_frame_total = count_video_frame_total(facefusion.globals.target_path)
+	if target_video is not None:
+		video_frame_total = count_video_frame_total(target_video)
 		return gradio.update(maximum = video_frame_total, visible = True)
-	return gradio.update()
+	return gradio.update(value = None, maximum = None, visible = False)
+
 
 
 def process_preview_frame(
