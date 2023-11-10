@@ -59,7 +59,7 @@ with _REQUIREMENT_PATH.open() as fp:
                     continue
 
                 launch.run_pip(
-                    f"install -U {requirement}",
+                    f'install -U "{requirement}"',
                     f"sd-webui-facefusion requirement: changing {name} version from {installed_version} to {version}",
                 )
                 continue
@@ -74,14 +74,14 @@ with _REQUIREMENT_PATH.open() as fp:
                     continue
 
                 launch.run_pip(
-                    f"install -U {requirement}",
+                    f'install -U "{requirement}"',
                     f"sd-webui-facefusion requirement: changing {name} version from {installed_version} to {version}",
                 )
                 continue
 
             if not launch.is_installed(requirement):
                 launch.run_pip(
-                    f"install {requirement}",
+                    f'install "{requirement}"',
                     f"sd-webui-facefusion requirement: {requirement}",
                 )
         except Exception as error:
