@@ -30,7 +30,7 @@ def on_ui_tabs():
             default.render()
             default.listen()
 
-        return ((block, "FaceFusion", "facefusion"),)
+        return ((block, "Video Face Swapper (FaceFusion)", "facefusion"),)
 
 
 script_callbacks.on_ui_tabs(on_ui_tabs)
