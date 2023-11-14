@@ -1,4 +1,6 @@
-function submit_facefusion_task() {
+async function submit_facefusion_task() {
+    await tierCheckButtonInternal("FaceFusion");
+
     const res = Array.from(arguments);
     const source_image = res[1];
     const target_image = res[2];

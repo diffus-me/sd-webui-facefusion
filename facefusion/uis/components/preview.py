@@ -281,7 +281,6 @@ def update_preview_image_wrapper(
 			"n_iter": 1,
 		},
 		is_intermediate=False,
-		only_available_for=["plus", "pro", "api"],
 	):
 		return update_preview_image(
 			request,
@@ -453,7 +452,6 @@ def process_preview_frame(
 			"height": 640,
 			"n_iter": len(frame_processors_checkbox_group),
 		},
-		only_available_for=["plus", "pro", "api"],
 	):
 		for frame_processor in frame_processors_checkbox_group:
 			frame_processor_module = load_frame_processor_module(frame_processor)
