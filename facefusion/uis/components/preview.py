@@ -425,8 +425,8 @@ def process_preview_frame(
 
 ) -> Frame:
 	temp_frame = resize_frame_dimension(temp_frame, 640, 640)
-	if predict_frame(temp_frame):
-		return cv2.GaussianBlur(temp_frame, (99, 99), 0)
+	# if predict_frame(temp_frame):
+	# 	return cv2.GaussianBlur(temp_frame, (99, 99), 0)
 
 	kwargs = {
 		"face_swapper_model": face_swapper_model_dropdown,
