@@ -1,4 +1,5 @@
 async function submit_facefusion_task() {
+    addGenerateGtagEvent("#facefusion_start_button > span", "facefusion_generation_button");
     await tierCheckButtonInternal("FaceFusion");
 
     const res = Array.from(arguments);
