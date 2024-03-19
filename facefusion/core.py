@@ -32,7 +32,10 @@ warnings.filterwarnings('ignore', category = UserWarning, module = 'gradio')
 warnings.filterwarnings('ignore', category = UserWarning, module = 'torchvision')
 
 def get_argument_parser():
-	signal.signal(signal.SIGINT, lambda signal_number, frame: destroy())
+	try:
+		signal.signal(signal.SIGINT, lambda signal_number, frame: destroy())
+	except ValueError:
+		pass
 	program = ArgumentParser(formatter_class = lambda prog: HelpFormatter(prog, max_help_position = 120), add_help = False)
 	# general
 	program.add_argument('-s', '--source', help = wording.get('source_help'), dest = 'source_path')
