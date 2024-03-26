@@ -10,7 +10,7 @@ from facefusion import wording
 from facefusion.core import update_status
 from facefusion.face_analyser import get_many_faces, clear_face_analyser
 from facefusion.typing import Face, FaceAnalyserAge, FaceAnalyserDirection, FaceAnalyserGender, FaceRecognition, Frame, Matrix, Update_Process, ProcessMode, ModelValue, OptionsWithModel
-from facefusion.utilities import conditional_download, resolve_relative_path, is_image, is_video, is_file, is_download_done
+from facefusion.utilities import conditional_download, resolve_relative_path, is_image, is_video, is_file, is_download_done, update_model_path
 from facefusion.vision import read_image, read_static_image, write_image
 from facefusion.processors.frame import globals as frame_processors_globals
 from facefusion.processors.frame import choices as frame_processors_choices
@@ -49,6 +49,7 @@ MODELS : Dict[str, ModelValue] =\
 }
 OPTIONS : Optional[OptionsWithModel] = None
 
+update_model_path(MODELS)
 
 # def get_frame_processor() -> Any:
 # 	global FRAME_PROCESSOR

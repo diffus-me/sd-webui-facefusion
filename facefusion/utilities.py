@@ -16,6 +16,15 @@ import onnxruntime
 import facefusion.globals
 from facefusion import wording
 from facefusion.vision import detect_fps
+from modules.paths import models_path
+
+_MODELS_DIR = os.path.join(models_path, "facefusion")
+
+def update_model_path(models):
+	for value in models.values():
+		url = value["url"]
+		filename = url.rsplit("/", 1)[-1]
+		value["path"] = os.path.join(_MODELS_DIR, filename)
 
 TEMP_DIRECTORY_PATH = os.path.join(tempfile.gettempdir(), 'facefusion')
 TEMP_OUTPUT_VIDEO_NAME = 'temp.mp4'

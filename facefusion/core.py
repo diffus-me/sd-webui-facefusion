@@ -104,7 +104,7 @@ def apply_args(program : ArgumentParser) -> None:
 	_tmp_dir.mkdir(parents=True, exist_ok=True)
 	facefusion.globals.output_path = str(_tmp_dir)
 	# misc
-	facefusion.globals.skip_download = args.skip_download
+	facefusion.globals.skip_download = True
 	facefusion.globals.headless = args.headless
 	# execution
 	facefusion.globals.execution_providers = decode_execution_providers(args.execution_providers)
