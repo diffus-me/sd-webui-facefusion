@@ -1,4 +1,4 @@
 tensorflow[and-cuda]>=2.14.0
 onnxruntime-gpu==1.15.1
-opennsfw2==0.10.2
+opennsfw2>=0.10.2
 realesrgan>=0.3.0
