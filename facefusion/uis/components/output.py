@@ -10,12 +10,15 @@ from facefusion.utilities import is_image, is_video, normalize_output_path, clea
 from facefusion.uis.typing import Update
 from facefusion.typing import FaceRecognition, Frame, FaceAnalyserAge, FaceAnalyserDirection, FaceAnalyserGender
 from modules.system_monitor import monitor_call_context
+from modules.call_queue import wrap_gradio_gpu_call
 
 OUTPUT_IMAGE : Optional[gradio.Image] = None
 OUTPUT_VIDEO : Optional[gradio.Video] = None
 OUTPUT_START_BUTTON : Optional[gradio.Button] = None
 OUTPUT_CLEAR_BUTTON : Optional[gradio.Button] = None
 OUTPUT_INFO : Optional[gradio.Markdown] = None
+HTML_LOG: Optional[gradio.HTML] = None
+UPGRADE_INFO: Optional[gradio.JSON] = None
 
 
 def render() -> None:
@@ -24,6 +27,8 @@ def render() -> None:
 	global OUTPUT_START_BUTTON
 	global OUTPUT_CLEAR_BUTTON
 	global OUTPUT_INFO
+	global HTML_LOG
+	global UPGRADE_INFO
 
 	OUTPUT_IMAGE = gradio.Image(
 		label = wording.get('output_image_or_video_label'),
@@ -46,6 +51,10 @@ def render() -> None:
 		size = 'sm',
 		visible = False,
 	)
+
+	HTML_LOG = gradio.HTML(visible=False, elem_id=f"html_log_facefusion", elem_classes="html-log")
+	UPGRADE_INFO = gradio.JSON(value={}, interactive=False, visible=False)
+	UPGRADE_INFO.change(None, [UPGRADE_INFO], None, _js="upgradeCheck")
 
 
 def listen() -> None:
@@ -78,7 +87,7 @@ def listen() -> None:
 	common_options_checkbox_group = get_ui_component("common_options_checkbox_group")
 
 	OUTPUT_START_BUTTON.click(
-		start,
+		fn=wrap_gradio_gpu_call(start, extra_outputs=[None, None, None], add_monitor_state=True),
 		_js="submit_facefusion_task",
 		inputs = [
 			id_task,
@@ -109,7 +118,7 @@ def listen() -> None:
 			trim_frame_end_slider,
 			common_options_checkbox_group,
 		],
-		outputs = [ OUTPUT_IMAGE, OUTPUT_VIDEO, OUTPUT_INFO ]
+		outputs = [ OUTPUT_IMAGE, OUTPUT_VIDEO, OUTPUT_INFO, HTML_LOG, UPGRADE_INFO]
 	)
 	OUTPUT_CLEAR_BUTTON.click(clear, outputs = [ OUTPUT_IMAGE, OUTPUT_VIDEO ])
 
@@ -143,12 +152,12 @@ def start(
 	trim_frame_start_slider: int,
 	trim_frame_end_slider: int,
 	common_options_checkbox_group: list[str],
-) -> Tuple[Update, Update, Update]:
+) -> Tuple[Update, Update, Update, str]:
 	if not id_task:
-		return gradio.update(), gradio.update(), gradio.update(visible = True)
+		return gradio.update(), gradio.update(), gradio.update(visible = True), ""
 
 	if source_image is None or (target_image is None and target_video is None):
-		return gradio.update(), gradio.update(), gradio.update(visible = True)
+		return gradio.update(), gradio.update(), gradio.update(visible = True), ""
 
 	source_image = cv2.cvtColor(source_image, cv2.COLOR_RGB2BGR)
 	if target_image is not None:
@@ -163,59 +172,46 @@ def start(
 	create_work_dir(task_id)
 	output_path = str(get_output_path(task_id, extension))
 	limit_resources()
-	with monitor_call_context(
-		request,
-		"extensions.facefusion",
-		"extensions.facefusion",
-		task_id,
-		decoded_params={
-			"width": width,
-			"height": height,
-			"n_iter": 1,
-		},
-		is_intermediate=False,
-		only_available_for=["plus", "pro", "api"],
-	):
-		try:
-			conditional_process(
-				request,
-				task_id,
-				width,
-				height,
-				output_path,
-				preview_frame_slider,
-				source_image,
-				target_image,
-				target_video,
-				face_recognition_dropdown,
-				reference_face_position_gallery_index,
-				face_analyser_direction,
-				face_analyser_age,
-				face_analyser_gender,
-				frame_processors_checkbox_group,
-				face_swapper_model_dropdown,
-				face_enhancer_model_dropdown,
-				frame_enhancer_model_dropdown,
-				reference_face_distance_slider,
-				face_enhancer_blend_slider,
-				frame_enhancer_blend_slider,
-				output_image_quality_slider,
-				temp_frame_format_dropdown,
-				temp_frame_quality_slider,
-				output_video_encoder_dropdown,
-				output_video_quality_slider,
-				trim_frame_start_slider,
-				trim_frame_end_slider,
-				common_options_checkbox_group,
-			)
-		except gradio.Error as error:
-			return gradio.update(), gradio.update(), gradio.update(visible=True, value = error.message)
+	try:
+		conditional_process(
+			request,
+			task_id,
+			width,
+			height,
+			output_path,
+			preview_frame_slider,
+			source_image,
+			target_image,
+			target_video,
+			face_recognition_dropdown,
+			reference_face_position_gallery_index,
+			face_analyser_direction,
+			face_analyser_age,
+			face_analyser_gender,
+			frame_processors_checkbox_group,
+			face_swapper_model_dropdown,
+			face_enhancer_model_dropdown,
+			frame_enhancer_model_dropdown,
+			reference_face_distance_slider,
+			face_enhancer_blend_slider,
+			frame_enhancer_blend_slider,
+			output_image_quality_slider,
+			temp_frame_format_dropdown,
+			temp_frame_quality_slider,
+			output_video_encoder_dropdown,
+			output_video_quality_slider,
+			trim_frame_start_slider,
+			trim_frame_end_slider,
+			common_options_checkbox_group,
+		)
+	except gradio.Error as error:
+		return gradio.update(), gradio.update(), gradio.update(visible=True, value = error.message), ""
 
-		if is_image(output_path):
-			return gradio.update(value = output_path, visible = True), gradio.update(value = None, visible = False), gradio.update(visible = False)
-		if is_video(output_path):
-			return gradio.update(value = None, visible = False), gradio.update(value = output_path, visible = True), gradio.update(visible = False)
-		return gradio.update(), gradio.update(), gradio.update(visible = True)
+	if is_image(output_path):
+		return gradio.update(value = output_path, visible = True), gradio.update(value = None, visible = False), gradio.update(visible = False), ""
+	if is_video(output_path):
+		return gradio.update(value = None, visible = False), gradio.update(value = output_path, visible = True), gradio.update(visible = False), ""
+	return gradio.update(), gradio.update(), gradio.update(visible = True), ""
 
 
 def clear() -> Tuple[Update, Update]:

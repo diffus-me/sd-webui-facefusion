@@ -6,11 +6,12 @@ async function submit_facefusion_task() {
     const source_image = res[1];
     const target_image = res[2];
     const target_video = res[3];
-    if (source_image && (target_image || target_video)) {
-        res[0] = randomId();
-    } else {
-        res[0] = "";
+    if (!source_image || (!target_image && !target_video)) {
+        throw "FaceFusion source or target is missing.";
     }
+
+    res[0] = randomId();
+
     return res;
 }
 
