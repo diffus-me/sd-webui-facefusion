@@ -87,7 +87,11 @@ def listen() -> None:
 	common_options_checkbox_group = get_ui_component("common_options_checkbox_group")
 
 	OUTPUT_START_BUTTON.click(
-		fn=wrap_gradio_gpu_call(start, extra_outputs=[None, None, None], add_monitor_state=True),
+		fn=wrap_gradio_gpu_call(
+			start,
+			func_name="facefusion",
+			extra_outputs=[None, None, None], add_monitor_state=True
+		),
 		_js="submit_facefusion_task",
 		inputs = [
 			id_task,
