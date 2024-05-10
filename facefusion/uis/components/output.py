@@ -9,7 +9,6 @@ from facefusion.uis.core import get_ui_component
 from facefusion.utilities import is_image, is_video, normalize_output_path, clear_temp, get_output_path, create_work_dir
 from facefusion.uis.typing import Update
 from facefusion.typing import FaceRecognition, Frame, FaceAnalyserAge, FaceAnalyserDirection, FaceAnalyserGender
-from modules.system_monitor import monitor_call_context
 from modules.call_queue import wrap_gradio_gpu_call
 
 OUTPUT_IMAGE : Optional[gradio.Image] = None

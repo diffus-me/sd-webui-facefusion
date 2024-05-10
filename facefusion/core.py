@@ -293,22 +293,23 @@ def process_image(
 	# 	raise gradio.Error("The input image is NSFW, it is not supported now")
 	# shutil.copy2(facefusion.globals.target_path, facefusion.globals.output_path)
 	# process frame
-	for frame_processor_module in get_frame_processors_modules(frame_processors_checkbox_group):
-		update_status(wording.get('processing'), frame_processor_module.NAME)
-		with monitor_call_context(
-			request,
-			"extensions.facefusion",
-			"extensions.facefusion",
-			decoded_params={
-				"width": width,
-				"height": height,
-				"n_iter": 1,
-			},
-			only_available_for=["plus", "pro", "api"],
-		):
+
+	with monitor_call_context(
+		request,
+		"extensions.facefusion",
+		"extensions.facefusion",
+		decoded_params={
+			"width": width,
+			"height": height,
+			"n_iter": len(frame_processors_checkbox_group),
+		},
+		only_available_for=["plus", "pro", "api"],
+	):
+		for frame_processor_module in get_frame_processors_modules(frame_processors_checkbox_group):
+			update_status(wording.get('processing'), frame_processor_module.NAME)
 			frame_processor_module.get_frame_processor(kwargs)
 			frame = frame_processor_module.process_image_frame(frame, kwargs)
-		frame_processor_module.post_process()
+			frame_processor_module.post_process()
 
 	write_image(output_path, frame)
 	# compress image
