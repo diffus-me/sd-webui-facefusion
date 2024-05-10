@@ -272,14 +272,9 @@ def update_preview_image_wrapper(
 
 	with monitor_call_context(
 		request,
-		"extensions.facefusion",
-		"extensions.facefusion",
+		"extensions.facefusion.preview",
+		"extensions.facefusion.preview",
 		task_id,
-		decoded_params={
-			"width": 640,
-			"height": 640,
-			"n_iter": 1,
-		},
 		is_intermediate=False,
 	):
 		return update_preview_image(
@@ -445,8 +440,8 @@ def process_preview_frame(
 	}
 	with monitor_call_context(
 		request,
-		"extensions.facefusion",
-		"extensions.facefusion",
+		"extensions.facefusion.preview",
+		"extensions.facefusion.preview",
 		decoded_params={
 			"width": 640,
 			"height": 640,
