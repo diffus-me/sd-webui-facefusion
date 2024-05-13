@@ -303,7 +303,8 @@ def process_image(
 			"height": height,
 			"n_iter": len(frame_processors_checkbox_group),
 		},
-		only_available_for=["plus", "pro", "api"],
+		feature_type="buttons",
+		feature_name="FaceFusion",
 	):
 		for frame_processor_module in get_frame_processors_modules(frame_processors_checkbox_group):
 			update_status(wording.get('processing'), frame_processor_module.NAME)
@@ -369,7 +370,8 @@ def process_video(
 				"height": height,
 				"n_iter": len(temp_frame_paths) * len(frame_processors_checkbox_group),
 			},
-			only_available_for=["plus", "pro", "api"],
+			feature_type="buttons",
+			feature_name="FaceFusion",
 		):
 			for frame_processor_module in get_frame_processors_modules(frame_processors_checkbox_group):
 				update_status(wording.get('processing'), frame_processor_module.NAME)
